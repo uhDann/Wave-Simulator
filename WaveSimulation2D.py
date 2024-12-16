@@ -237,11 +237,11 @@ class Experiment:
     def __init__(self, grid_size, ds, dt, c):
         self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
 
-    def plot_row_transducers(self, type="sin", rows=2, cols=3, start_time=0, total_time=12):
+    def plot_row_transducers(self, type="sin", rows=2, cols=3, start_time=0, total_time=10):
 
         if type == "impulse":
-            for i in range(0, 10, 2):
-                self.sim.add_source(Sources.create_impulse_source_2D(10, i, 0, 0))
+            for i in range(0, 10, 3):
+                self.sim.add_source(Sources.create_impulse_source_2D(1000, i, 0, 0))
         elif type == "sin":
             for i in range(0, 10, 2):
                 self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
@@ -250,7 +250,7 @@ class Experiment:
 
         # Number of subplots
         num_subplots = rows * cols
-        time_step = (total_time - start_time) / num_subplots
+        time_step = (total_time - start_time) / (num_subplots - 1)
         start_time /= 0.01
 
         # Create figure and subplots
@@ -260,16 +260,16 @@ class Experiment:
         plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
 
         # Step manually and plot
-        for i in tqdm(range(int(total_time / 0.01))):
+        for i in tqdm(range(int(total_time / 0.01) + 1)):  # Include the last step
             self.sim.step()
-            if i > start_time and i % plot_step == 0:
+            if i >= start_time and i % plot_step == 0:
                 subplot_index = i // plot_step
                 if subplot_index < num_subplots:
                     im = self.sim.plot(ax=axes[subplot_index])
 
+
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        plt.tight_layout()
-        plt.savefig("MSFigures/2D/WaveSimulation2D_30s_rowOFsin_new.png")
+        plt.savefig("MSFigures/2D/WaveSimulation2D_test.png", dpi=300, bbox_inches='tight')
         plt.show()
         
 
@@ -293,11 +293,10 @@ if __name__ == "__main__":
     # Speed of sound in medium
     c = 1.0
 
-    # row_impulse = Experiment(grid_size, ds, dt, c)
+    row_impulse = Experiment(grid_size, ds, dt, c)
 
-    # row_impulse.plot_row_transducers(type="impulse", rows=2, cols=3, start_time=0, total_time=12)
+    row_impulse.plot_row_transducers(type="sin", rows=2, cols=3, start_time=0, total_time=10)
 
-    sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
-
-    sim.add_source(Sources.create_impulse_source_2D(1, 1, 1, 0))
-    sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
+    # sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
+    # sim.add_source(Sources.create_impulse_source_2D(10000, 1, 1, 0))
+    # sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
