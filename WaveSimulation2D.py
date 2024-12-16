@@ -96,7 +96,6 @@ class WaveSimulation2D:
         dt2 = self.dt ** 2
         ds2 = self.ds ** 2
 
-        # Compute the Laplacian
         for i in range(1, self.nx - 1):
             for j in range(1, self.ny - 1):
                 laplacian = (
@@ -104,18 +103,17 @@ class WaveSimulation2D:
                     + self.u[i, j + 1] + self.u[i, j - 1]
                     - 4 * self.u[i, j]
                 ) / ds2
+
+                source_contribution = 0
+                for source in self.sources:
+                    source_contribution += source(
+                        i * self.ds, j * self.ds, self.time)
+
                 self.u_next[i, j] = (
                     2 * self.u[i, j]
                     - self.u_prev[i, j]
-                    + c2 * dt2 * laplacian
+                    + c2 * dt2 * (laplacian + source_contribution)
                 )
-
-        # Add source contributions
-        for source in self.sources:
-            for i in range(self.nx):
-                for j in range(self.ny):
-                    self.u_next[i, j] += self.dt ** 2 * \
-                        source(i * self.ds, j * self.ds, self.time)
 
         # Apply boundary conditions
         if self.boundary == "reflective":
