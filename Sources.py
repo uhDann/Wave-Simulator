@@ -1,5 +1,3 @@
-from types import FunctionType
-
 import numpy as np
 
 
@@ -58,6 +56,8 @@ def create_impulse_source_2D(amplitude, x0, y0, t0):
     amplitude: (float)
         Amplitude of the source
     x0, y0: (float, float)
+    t0: (float)
+        Time of the impulse
 
     Returns:
     fun: (function(x: float, y: float, t: float) -> float)
@@ -85,6 +85,8 @@ def create_impulse_source_3D(amplitude, x0, y0, z0, t0):
     amplitude: (float)
         Amplitude of the source
     x0, y0, z0: (float, float, float)
+    t0: (float)
+        Time of the impulse
 
     Returns:
     fun: (function(x: float, y: float, z: float, t: float) -> float)
