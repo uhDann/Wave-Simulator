@@ -234,35 +234,34 @@ class WaveSimulation2D:
         plt.show()
 
 class Experiment:
-    def __init__(self, grid_size, ds, dt, c):
-        self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
+    def __init__(self, grid_size, ds, dt, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10):
+        self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary=boundary)
 
-    def plot_row_transducers(self, type="sin", rows=2, cols=3, start_time=0, total_time=10):
-
-        if type == "impulse":
-            for i in range(0, 10, 3):
-                self.sim.add_source(Sources.create_impulse_source_2D(1000, i, 0, 0))
-        elif type == "sin":
-            for i in range(0, 10, 2):
-                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
-        else:
+        # Save the plot parameters
+        self.rows = rows
+        self.cols = cols
+        self.start_time = start_time
+        self.total_time = total_time
+        if t_type not in ["impulse", "sin"]:
             raise ValueError("Invalid source type. Use 'impulse' or 'sin'.")
+        self.t_type = type
 
+    def _plot(self):
         # Number of subplots
-        num_subplots = rows * cols
-        time_step = (total_time - start_time) / (num_subplots - 1)
-        start_time /= 0.01
+        num_subplots = self.rows * self.cols
+        time_step = (self.total_time - self.start_time) / (num_subplots - 1)
+        self.start_time /= 0.01
 
         # Create figure and subplots
-        fig, axes = plt.subplots(rows, cols, figsize=(20, 8), constrained_layout=True)
+        fig, axes = plt.subplots(self.rows, self.cols, figsize=(20, 8), constrained_layout=True)
         # Flatten the axes array for easy indexing
         axes = axes.flatten()
         plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
 
         # Step manually and plot
-        for i in tqdm(range(int(total_time / 0.01) + 1)):  # Include the last step
+        for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
             self.sim.step()
-            if i >= start_time and i % plot_step == 0:
+            if i >= self.start_time and i % plot_step == 0:
                 subplot_index = i // plot_step
                 if subplot_index < num_subplots:
                     im = self.sim.plot(ax=axes[subplot_index])
@@ -271,6 +270,33 @@ class Experiment:
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
         plt.savefig("MSFigures/2D/WaveSimulation2D_test.png", dpi=300, bbox_inches='tight')
         plt.show()
+
+    def plot_row_transducers(self):
+
+        if self.t_type == "impulse":
+            for i in range(1, 9, 3):
+                self.sim.add_source(Sources.create_impulse_source_2D(10000, i, 1, 0.02))
+        elif self.t_type == "sin":
+            for i in range(0, 10, 2):
+                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
+
+        self._plot()
+    
+    def plot_2_trans(self):
+
+        if self.t_type == "impulse":
+            self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+        elif self.t_type == "sin":
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 4, 4, 0))
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 6, 6, 0))
+
+        self._plot()
+
+        
+
+
+        
         
 
 
@@ -293,10 +319,16 @@ if __name__ == "__main__":
     # Speed of sound in medium
     c = 1.0
 
-    row_impulse = Experiment(grid_size, ds, dt, c)
+    # Set the transducer type to "impulse" or "sin"
+    t_type = "sin"
 
-    row_impulse.plot_row_transducers(type="sin", rows=2, cols=3, start_time=0, total_time=10)
+    row_impulse = Experiment(grid_size, ds, dt, c, t_type=t_type, total_time=6)
 
+    row_impulse.plot_row_transducers()
+
+
+    
     # sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
-    # sim.add_source(Sources.create_impulse_source_2D(10000, 1, 1, 0))
+    # sim.add_source(Sources.create_impulse_source_2D(10000, 1, 0, 0))
+    # sim.add_source(Sources.create_impulse_source_2D(10000, 3, 0, 0))
     # sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
