@@ -100,7 +100,7 @@ def create_impulse_source_3D(amplitude, x0, y0, z0, t0):
         # Swap x0 and y0 because grid is indexed as u[y_i, x_i, z_i]
         spatial_term = np.exp(-((x - y0)**2 + (y - x0) **
                               2 + (z - z0)**2) / width**2)
-        temporal_term = 1.0 if np.isclose(t, t0) else 0.0
+        temporal_term = 1.0 if np.abs(t - t0) < 1e-5 else 0.0
 
         return amplitude * spatial_term * temporal_term
 
