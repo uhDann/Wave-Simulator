@@ -5,7 +5,7 @@ __pycache__/
 # Ignore system files
 .DS_Store
 Thumbs.db
-.tempCodeRunnerFile.py
+tempCodeRunnerFile.py
 
 # Ignore environment files
 .env
