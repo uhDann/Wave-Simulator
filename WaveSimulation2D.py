@@ -50,10 +50,10 @@ class WaveSimulation2D:
         self.time = 0
 
         # Stability condition (Courant condition)
-        self.stability_limit = c * dt / ds
-        if self.stability_limit > (1 / 2):
-            raise ValueError(
-                "Stability condition violated. Reduce dt or increase ds.")
+        # self.stability_limit = c * dt / ds
+        # if self.stability_limit > (1 / 2):
+        #     raise ValueError(
+        #         "Stability condition violated. Reduce dt or increase ds.")
 
     def _initialize_pml(self):
         """Define the PML damping profile."""
@@ -121,11 +121,6 @@ class WaveSimulation2D:
             self.u_next[-1, :] = self.u_next[-2, :]
             self.u_next[:, 0] = self.u_next[:, 1]
             self.u_next[:, -1] = self.u_next[:, -2]
-        elif self.boundary == "absorbing":
-            self.u_next[0, :] = 0
-            self.u_next[-1, :] = 0
-            self.u_next[:, 0] = 0
-            self.u_next[:, -1] = 0
         elif self.boundary == "pml":
             self.u_next *= np.exp(-self.sigma * self.dt)
         elif self.boundary == "mur":
@@ -148,6 +143,7 @@ class WaveSimulation2D:
         plt.title("PML Damping Profile")
         plt.xlabel("x")
         plt.ylabel("y")
+        plt.savefig("MSFigures/2D/pml_profile.png")
         plt.show()
 
     def plot(self, ax=None, vmin=-1.0, vmax=1.0):
@@ -234,7 +230,8 @@ class WaveSimulation2D:
         plt.show()
 
 class Experiment:
-    def __init__(self, grid_size, ds, dt, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10):
+    def __init__(self, grid_size, ds, dt, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
+
         self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary=boundary)
 
         # Save the plot parameters
@@ -242,11 +239,16 @@ class Experiment:
         self.cols = cols
         self.start_time = start_time
         self.total_time = total_time
-        if t_type not in ["impulse", "sin"]:
+        if t_type not in ["impulse", "sin", "both"]:
             raise ValueError("Invalid source type. Use 'impulse' or 'sin'.")
-        self.t_type = type
+        self.t_type = t_type
+        self.plot_path = plot_path
+
+    def _animate(self):
+        self.sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
 
     def _plot(self):
+
         # Number of subplots
         num_subplots = self.rows * self.cols
         time_step = (self.total_time - self.start_time) / (num_subplots - 1)
@@ -266,9 +268,9 @@ class Experiment:
                 if subplot_index < num_subplots:
                     im = self.sim.plot(ax=axes[subplot_index])
 
-
+        # Add a colorbar
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        plt.savefig("MSFigures/2D/WaveSimulation2D_test.png", dpi=300, bbox_inches='tight')
+        plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
     def plot_row_transducers(self):
@@ -279,25 +281,40 @@ class Experiment:
         elif self.t_type == "sin":
             for i in range(0, 10, 2):
                 self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
-
-        self._plot()
+        
+        if self.plot_path is not None:
+            self._plot()
+        else:
+            self._animate()
+       
     
-    def plot_2_trans(self):
+    def plot_2_transducers(self):
 
         if self.t_type == "impulse":
             self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
             self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
         elif self.t_type == "sin":
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 4, 4, 0))
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 6, 6, 0))
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
-        self._plot()
+        if self.plot_path is not None:
+            self._plot()
+        else:
+            self._animate()
+    
+    def plot_var_transducers(self):
+        self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+        self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 2, 2))
+        self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
-        
-
-
-        
-        
+        if self.plot_path is not None:
+            self._plot()
+        else:
+            self._animate()
+    
+    def pml_test(self):
+        self.sim.plot_pml_profile()
+        self.plot_2_transducers()
 
 
 if __name__ == "__main__":
@@ -307,28 +324,81 @@ if __name__ == "__main__":
     # 3. Add sources to the simulation, there are some define in Sources.py
     # 4. Either manually step the simulation or run with animatd plotting
 
+    ##################### SETUP THE ENVIRONMENT PARAMETERS #####################
     # Dimensions of grid
     grid_size = (100, 100)
-
     # Difference in distance between grid points
     ds = 0.1
-
     # Time step
     dt = 0.01
-
     # Speed of sound in medium
     c = 1.0
 
-    # Set the transducer type to "impulse" or "sin"
-    t_type = "sin"
 
-    row_impulse = Experiment(grid_size, ds, dt, c, t_type=t_type, total_time=6)
+    ########################### SETUP THE EXPERIMENT ###########################
 
-    row_impulse.plot_row_transducers()
+    ############################## Experiment 1-4 ##############################
+    experiment_type = "pml"
+    t_type = "sin"  # "impulse" or "sin"
+    total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
+
+    plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
 
 
-    
-    # sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
-    # sim.add_source(Sources.create_impulse_source_2D(10000, 1, 0, 0))
-    # sim.add_source(Sources.create_impulse_source_2D(10000, 3, 0, 0))
-    # sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
+    row_impulse = Experiment(grid_size, ds, dt, c, boundary="pml", t_type=t_type, total_time=total_time, plot_path=plot_path)
+
+    # "2_transducers" Experiment
+    # row_impulse.plot_2_transducers()
+
+    # "row_transducers" Experiment
+    # row_impulse.plot_row_transducers
+
+    # "var_transducers" Experiment
+    # row_impulse.plot_var_transducers()
+
+    # "pml_test" Experiment
+    # row_impulse.pml_test()
+
+    ############################## Experiment 5 ################################
+    def run_simulation_and_plot(param_name, param_values, axes):
+        for idx, param in enumerate(param_values):
+            print(f"Running for {param_name} = {param}")
+
+            if param_name == "dt":
+                row_impulse = Experiment(grid_size, ds, param, c, t_type=t_type, total_time=total_time, plot_path=plot_path)
+            elif param_name == "ds":
+                row_impulse = Experiment(grid_size, param, dt, c, t_type=t_type, total_time=total_time, plot_path=plot_path)
+
+            row_impulse.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+            row_impulse.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+
+            # Run the simulation up to 4 seconds
+            for _ in tqdm(range(int(3 / dt))):
+                row_impulse.sim.step()
+
+            # Plot at 2 seconds
+            im = row_impulse.sim.plot(ax=axes[idx])
+            axes[idx].set_title(f"Simulation step: {param_name} = {param:.2f}")
+
+        return im
+
+    def error_test(test_subject):
+        fig, axes = plt.subplots(2, 3, figsize=(20, 8), constrained_layout=True)
+        axes = axes.flatten()
+
+        if test_subject == "dt":
+            param_values = np.linspace(0.01, 1, 6)
+            im = run_simulation_and_plot("dt", param_values, axes)
+        elif test_subject == "ds":
+            param_values = np.linspace(0.01, 0.7, 6)
+            im = run_simulation_and_plot("ds", param_values, axes)
+
+        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        plt.savefig(f"MSFigures/2D/WS_{test_subject}_error.png", dpi=300, bbox_inches='tight')
+        plt.show()
+
+    test_subject = "ds"  # "ds" or "dt"
+
+    error_test(test_subject)
+
+
