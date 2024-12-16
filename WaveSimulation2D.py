@@ -38,7 +38,6 @@ class WaveSimulation2D:
         self._initialize_pml()
 
         # Wave function at t
-        # u[y_i, x_i]
         self.u = np.zeros((self.nx, self.ny))
         # Wave function at t-1
         self.u_prev = np.zeros((self.nx, self.ny))
@@ -76,6 +75,7 @@ class WaveSimulation2D:
 
         # Combine damping profiles: Sum or take max for uniform edge damping
         self.sigma = sigma_x + sigma_y  # Uniform damping near edges
+
 
     def add_source(self, source_function):
         """
@@ -132,14 +132,11 @@ class WaveSimulation2D:
             self.u_next *= np.exp(-self.sigma * self.dt)
         elif self.boundary == "mur":
             # Apply Mur absorbing boundary condition
-            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (
-                self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
-            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (
-                self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
-            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (
-                self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
-            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (
-                self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
+            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
+            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
+            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
+            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
+
 
         # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
@@ -148,8 +145,7 @@ class WaveSimulation2D:
     def plot_pml_profile(self):
         """Plot the PML damping profile."""
         plt.figure()
-        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0,
-                   self.ny * self.ds), cmap='viridis', origin='lower')
+        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0, self.ny * self.ds), cmap='viridis', origin='lower')
         plt.colorbar(label="Damping Coefficient")
         plt.title("PML Damping Profile")
         plt.xlabel("x")
@@ -179,12 +175,14 @@ class WaveSimulation2D:
             self.u, extent=(0, self.nx * self.ds, 0, self.ny * self.ds),
             cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
         )
-        ax.set_title(f"Time: {self.time:.2f} s")
+        ax.set_title(f"Time: {self.time-0.01:.2f} s")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         if ax is None:
             plt.colorbar(im, ax=ax, label="Pressure")
             plt.show()
+
+        return im
 
     def run_simulation(self, steps, vmin=None, vmax=None, plot_interval=1):
         """
@@ -237,8 +235,45 @@ class WaveSimulation2D:
         plt.ioff()
         plt.show()
 
-    def plot_per_step():
-        pass
+class Experiment:
+    def __init__(self, grid_size, ds, dt, c):
+        self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
+
+    def plot_row_transducers(self, type="sin", rows=2, cols=3, start_time=0, total_time=12):
+
+        if type == "impulse":
+            for i in range(0, 10, 2):
+                self.sim.add_source(Sources.create_impulse_source_2D(10, i, 0, 0))
+        elif type == "sin":
+            for i in range(0, 10, 2):
+                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
+        else:
+            raise ValueError("Invalid source type. Use 'impulse' or 'sin'.")
+
+        # Number of subplots
+        num_subplots = rows * cols
+        time_step = (total_time - start_time) / num_subplots
+        start_time /= 0.01
+
+        # Create figure and subplots
+        fig, axes = plt.subplots(rows, cols, figsize=(20, 8), constrained_layout=True)
+        # Flatten the axes array for easy indexing
+        axes = axes.flatten()
+        plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
+
+        # Step manually and plot
+        for i in tqdm(range(int(total_time / 0.01))):
+            self.sim.step()
+            if i > start_time and i % plot_step == 0:
+                subplot_index = i // plot_step
+                if subplot_index < num_subplots:
+                    im = self.sim.plot(ax=axes[subplot_index])
+
+        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        plt.tight_layout()
+        plt.savefig("MSFigures/2D/WaveSimulation2D_30s_rowOFsin_new.png")
+        plt.show()
+        
 
 
 if __name__ == "__main__":
@@ -260,40 +295,11 @@ if __name__ == "__main__":
     # Speed of sound in medium
     c = 1.0
 
+    # row_impulse = Experiment(grid_size, ds, dt, c)
+
+    # row_impulse.plot_row_transducers(type="impulse", rows=2, cols=3, start_time=0, total_time=12)
+
     sim = WaveSimulation2D(grid_size, ds, dt, c, boundary="mur")
 
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 0, 0))
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 2, 0))
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 0))
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 0))
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 8, 0))
-    sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 10, 0))
-
-    # sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
-
-    # Number of subplots
-    rows, cols = 2, 3  # Grid dimensions
-    num_subplots = rows * cols
-
-    time_step = 5  # 5 seconds interval
-    total_time = 30  # Total time to simulate
-    start_time = 0
-
-    # Create figure and subplots
-    fig, axes = plt.subplots(rows, cols, figsize=(20, 8))
-
-    # Flatten the axes array for easy indexing
-    axes = axes.flatten()
-
-    # Step manually and plot
-    for i in tqdm(range(3000)):
-        sim.step()
-        if i % 500 == 0:  # 5 seconds interval (5 / 0.01 = 500 steps)
-            subplot_index = i // 500
-            if subplot_index < num_subplots:
-                sim.plot(ax=axes[subplot_index], vmin=-1, vmax=1)
-
-    plt.tight_layout()
-    plt.savefig("MSFigures/2D/WaveSimulation2D_30s_rowOFsin.png")
-    plt.show()
-
+    sim.add_source(Sources.create_impulse_source_2D(1, 1, 1, 0))
+    sim.run_simulation(steps=1000, vmin=-1, vmax=1, plot_interval=1)
