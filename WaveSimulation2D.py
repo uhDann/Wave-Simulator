@@ -38,6 +38,7 @@ class WaveSimulation2D:
         self._initialize_pml()
 
         # Wave function at t
+        # u[y_i, x_i]
         self.u = np.zeros((self.nx, self.ny))
         # Wave function at t-1
         self.u_prev = np.zeros((self.nx, self.ny))
@@ -75,7 +76,6 @@ class WaveSimulation2D:
 
         # Combine damping profiles: Sum or take max for uniform edge damping
         self.sigma = sigma_x + sigma_y  # Uniform damping near edges
-
 
     def add_source(self, source_function):
         """
@@ -132,11 +132,14 @@ class WaveSimulation2D:
             self.u_next *= np.exp(-self.sigma * self.dt)
         elif self.boundary == "mur":
             # Apply Mur absorbing boundary condition
-            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
-            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
-            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
-            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
-
+            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
+            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
+            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
+            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
 
         # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
@@ -145,7 +148,8 @@ class WaveSimulation2D:
     def plot_pml_profile(self):
         """Plot the PML damping profile."""
         plt.figure()
-        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0, self.ny * self.ds), cmap='viridis', origin='lower')
+        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0,
+                   self.ny * self.ds), cmap='viridis', origin='lower')
         plt.colorbar(label="Damping Coefficient")
         plt.title("PML Damping Profile")
         plt.xlabel("x")
@@ -271,7 +275,6 @@ if __name__ == "__main__":
     rows, cols = 2, 3  # Grid dimensions
     num_subplots = rows * cols
 
-
     time_step = 5  # 5 seconds interval
     total_time = 30  # Total time to simulate
     start_time = 0
@@ -289,7 +292,8 @@ if __name__ == "__main__":
             subplot_index = i // 500
             if subplot_index < num_subplots:
                 sim.plot(ax=axes[subplot_index], vmin=-1, vmax=1)
-    
+
     plt.tight_layout()
     plt.savefig("MSFigures/2D/WaveSimulation2D_30s_rowOFsin.png")
     plt.show()
+

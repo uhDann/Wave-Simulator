@@ -32,6 +32,7 @@ class WaveSimulation3D:
         self.boundary = boundary
 
         # Wave function at t
+        # u[y_i, x_i, z_i]
         self.u = np.zeros((self.nx, self.ny, self.nz))
         # Wave function at t-1
         self.u_prev = np.zeros((self.nx, self.ny, self.nz))
@@ -207,7 +208,7 @@ if __name__ == "__main__":
     ds = 0.1
 
     # Time step
-    dt = 0.05
+    dt = 0.01
 
     # Speed of sound in medium
     c = 1.0
@@ -215,7 +216,7 @@ if __name__ == "__main__":
     sim = WaveSimulation3D(grid_size, ds, dt, c, boundary="absorbing")
 
     sim.add_source(Sources.create_sinusoidal_source_3D(
-        amplitude=10.0, frequency=1.0, x0=5, y0=5, z0=5))
+        amplitude=10.0, frequency=1.0, x0=5, y0=2, z0=5))
 
     sim.run_simulation(steps=300, z_slice=50, vmin=-
                        1, vmax=1, plot_interval=1)
