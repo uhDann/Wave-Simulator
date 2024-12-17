@@ -101,13 +101,19 @@ class WaveSimulation3D:
             self.u_next[:, -1, :] = self.u_next[:, -2, :]
             self.u_next[:, :, 0] = self.u_next[:, :, 1]
             self.u_next[:, :, -1] = self.u_next[:, :, -2]
-        elif self.boundary == "absorbing":
-            self.u_next[0, :, :] = 0
-            self.u_next[-1, :, :] = 0
-            self.u_next[:, 0, :] = 0
-            self.u_next[:, -1, :] = 0
-            self.u_next[:, :, 0] = 0
-            self.u_next[:, :, -1] = 0
+        elif self.boundary == "mur":
+            c = self.c
+            dt = self.dt
+            ds = self.ds
+            for i in range(1, self.nx - 1):
+                for j in range(1, self.ny - 1):
+                    for k in range(1, self.nz - 1):
+                        self.u_next[0, j, k] = self.u[1, j, k] + (c * dt - ds) / (c * dt + ds) * (self.u_next[1, j, k] - self.u[0, j, k])
+                        self.u_next[-1, j, k] = self.u[-2, j, k] + (c * dt - ds) / (c * dt + ds) * (self.u_next[-2, j, k] - self.u[-1, j, k])
+                        self.u_next[i, 0, k] = self.u[i, 1, k] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, 1, k] - self.u[i, 0, k])
+                        self.u_next[i, -1, k] = self.u[i, -2, k] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, -2, k] - self.u[i, -1, k])
+                        self.u_next[i, j, 0] = self.u[i, j, 1] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, j, 1] - self.u[i, j, 0])
+                        self.u_next[i, j, -1] = self.u[i, j, -2] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, j, -2] - self.u[i, j, -1])
 
         # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev

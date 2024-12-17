@@ -342,6 +342,9 @@ class Experiment:
         self.t_type = t_type
         self.plot_path = plot_path
 
+        if plot_path is None:
+            print("[INFO] No plot_path passed, where possible the animation will be displayed. For some tests, only the plot will be displayed.")
+
     def _animate(self):
         '''Internal method to animate the simulation.'''
         self.sim.run_simulation(steps=int(self.total_time / 0.01) + 1, vmin=-1, vmax=1, plot_interval=1)
@@ -517,7 +520,8 @@ class Experiment:
             im = run_simulation_and_plot("noise", param_values, axes)
 
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+        if self.plot_path is not None:
+            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
     
@@ -571,8 +575,8 @@ class Experiment:
 
         plt.tight_layout()
 
-        if additoonal_path is not None:
-            plt.savefig(additoonal_path, dpi=300, bbox_inches='tight')
+        if self.plot_path is not None:
+            plt.savefig(self.plot_path[:-4]+"_interf.png", dpi=300, bbox_inches='tight')
         plt.show()
     
     def calculate_snr(self, signal, noise_amplitude):
