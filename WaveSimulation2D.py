@@ -1,12 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+from scipy.ndimage import gaussian_filter
+from noise import pnoise2
 
 import Sources
 
+NOISE = "white"
 
 class WaveSimulation2D:
-    def __init__(self, grid_size, ds, dt, c, pml_width=10, boundary="pml", stability_check=True):
+    def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
         """
         Initialize the simulation.
 
@@ -26,6 +29,7 @@ class WaveSimulation2D:
 
         self.ds = ds
         self.dt = dt
+        self.noise = noise
 
         self.c = c
 
@@ -39,6 +43,9 @@ class WaveSimulation2D:
 
         # Wave function at t
         self.u = np.zeros((self.nx, self.ny))
+        if self.noise is not None:
+            self.simulate_noise(amplitude=0.01, noise_type=self.noise)
+
         # Wave function at t-1
         self.u_prev = np.zeros((self.nx, self.ny))
         # Wave function at t+1
@@ -88,8 +95,46 @@ class WaveSimulation2D:
         """
         self.sources.append(source_function)
 
+    def perlin_noise(shape, scale=10.0, amplitude=1.0):
+        noise = np.zeros(shape)
+        for i in range(shape[0]):
+            for j in range(shape[1]):
+                noise[i, j] = pnoise2(i / scale, j / scale)
+        return noise * amplitude
+
+    def simulate_noise(self, amplitude=0.01, noise_type=NOISE):
+        """
+        Add simulated noise to the wave field.
+
+        Parameters:
+        amplitude: float
+            The amplitude of the noise to scale the random values.
+        noise_type: str
+            Type of noise to add. Options are 'gaussian' (default) or 'uniform'.
+        """
+        # Environment/system noise
+        # Fine-grained random variations, overall roughness/grain
+        if noise_type == "white": 
+            noise = np.random.uniform(low=-amplitude, high=amplitude, size=self.u.shape)
+        # Creates complex, multi-scale textures (rough terrains, turbulent patterns)
+        elif noise_type == "speckle": 
+            noise = self.u * np.random.normal(1.0, amplitude, size=self.u.shape)
+
+        # Texture noise
+        # Smooth random variations, overall smoothness
+        elif noise_type == "gaussian":
+            orig_noise = np.random.normal(0, amplitude, size=self.u.shape)
+            noise = gaussian_filter(orig_noise, sigma=2)
+        # Natural looking textures (clouds, terrain, waves)
+        elif noise_type == "perlin":
+            noise = self.perlin_noise(self.u.shape, scale=20.0, amplitude=amplitude)
+        else:
+            raise ValueError("Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin'.")
+        
+        self.u += noise
+
     # TODO: "absorbing" and "pml" do not work as expected yet
-    def step(self):
+    def step(self, addNoise=False, noise_amplitude=0.001):
         """
         Perform one time step of the simulation.
         """
@@ -131,6 +176,9 @@ class WaveSimulation2D:
             self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
             self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
 
+        # Add noise if specified
+        if addNoise:
+            self.simulate_noise(amplitude=noise_amplitude)
 
         # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
@@ -213,7 +261,10 @@ class WaveSimulation2D:
 
         # Run the simulation
         for step in range(steps):
-            self.step()
+            if self.noise is not None:
+                self.step(addNoise=True, noise_amplitude=0.001)
+            else:
+                self.step(addNoise=False)
 
             if step % plot_interval == 0:
                 # Update the image data
@@ -231,7 +282,7 @@ class WaveSimulation2D:
         plt.show()
 
 class Experiment:
-    def __init__(self, grid_size, ds, dt, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
+    def __init__(self, grid_size, ds, dt, noise, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
         '''
         Initialize the experiment with the simulation parameters and plot parameters.
         
@@ -242,6 +293,8 @@ class Experiment:
                 Spatial step size.
             dt: float
                 Time step size.
+            noise: str
+                Type of noise to add. Options are 'white', 'speckle', 'gaussian', 'per
             c: float
                 Speed of sound in the medium.
             boundary: str
@@ -276,7 +329,7 @@ class Experiment:
             '''
         
         # Initialize the simulation environment
-        self.sim = WaveSimulation2D(grid_size, ds, dt, c, boundary=boundary)
+        self.sim = WaveSimulation2D(grid_size, ds, dt, c, noise, boundary=boundary)
 
         # Save the experiment parameters
         self.grid_size = grid_size
@@ -308,7 +361,11 @@ class Experiment:
 
         # Step manually and plot
         for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
-            self.sim.step()
+            if self.sim.noise is not None:
+                self.sim.step(addNoise=True, noise_amplitude=0.001)
+            else:
+                self.sim.step()
+
             if i >= self.start_time and i % plot_step == 0:
                 subplot_index = i // plot_step
                 if subplot_index < num_subplots:
@@ -365,6 +422,26 @@ class Experiment:
         else:
             self._animate()
     
+    def plot_1_noise_transducers(self):
+        '''Plots the wave field for two transducers in a random central location.'''
+        '''Assess how one noise source affects the wave field.'''
+
+        # Add the selecred sources to the simulation
+        if self.t_type == "impulse":
+            self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_2D(500, 2, 4, 0.02))
+        elif self.t_type == "sin":
+            # amplitude, frequency, x0, y0, z0
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
+
+        if self.plot_path is not None:
+            self._plot()
+        else:
+            self._animate()
+
     def pml_test(self):
         '''Plots the pml profile and wave field for two transducers in a random central location with PML boundary.'''
 
@@ -399,9 +476,11 @@ class Experiment:
                 print(f"Running for {param_name} = {param}")
 
                 if param_name == "dt":
-                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, param, self.sim.c, boundary=self.sim.boundary, stability_check=False)
+                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, param, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
                 elif param_name == "ds":
-                    new_env = WaveSimulation2D(self.grid_size, param, self.sim.dt, self.sim.c, boundary=self.sim.boundary, stability_check=False)
+                    new_env = WaveSimulation2D(self.grid_size, param, self.sim.dt, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
+                elif param_name == "noise":
+                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, self.sim.dt, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
 
                 if self.t_type == "impulse":
                     new_env.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
@@ -433,6 +512,9 @@ class Experiment:
         elif test_subject == "ds":
             param_values = np.linspace(0.01, 0.7, 6)
             im = run_simulation_and_plot("ds", param_values, axes)
+        elif test_subject == "noise":
+            param_values = np.linspace(0.0, 0.01, 6)
+            im = run_simulation_and_plot("noise", param_values, axes)
 
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
         plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
@@ -493,6 +575,45 @@ class Experiment:
             plt.savefig(additoonal_path, dpi=300, bbox_inches='tight')
         plt.show()
     
+    def calculate_snr(self, signal, noise_amplitude):
+        """
+        Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
+
+        Parameters:
+            signal (np.ndarray): The wave field or image signal.
+            noise_amplitude (float): Amplitude of the noise added.
+
+        Returns:
+            float: Signal-to-noise ratio (SNR) in decibels.
+        """
+        signal_power = np.mean(signal**2)  # Mean power of the signal
+        noise_power = noise_amplitude**2   # Power of the noise
+        snr = 10 * np.log10(signal_power / noise_power)
+        return snr
+        
+    def noise_threshold(self):
+        noise_amplitudes = np.linspace(0.0, 0.01, 20)  # Noise amplitudes to test
+        threshold_reached = False
+
+        for noise_amp in noise_amplitudes:
+            self.sim.step(addNoise=True, noise_amplitude=noise_amp)
+            snr = self.calculate_snr(self.sim.u, noise_amp)
+            
+            # Plot the noisy wave field
+            plt.imshow(self.sim.u, cmap="viridis", origin="lower")
+            plt.title(f"Noise Amplitude: {noise_amp:.2f}, SNR: {snr:.2f} dB")
+            plt.colorbar(label="Amplitude")
+            plt.show()
+
+            # Visual detection check
+            user_input = input("Is the image still detectable? (yes/no): ").strip().lower()
+            if user_input == "no":
+                print(f"Threshold reached at Noise Amplitude: {noise_amp:.2f}, SNR: {snr:.2f} dB")
+                threshold_reached = True
+                break
+
+        if not threshold_reached:
+            print("Image remains detectable for all noise levels tested.")
 
 if __name__ == "__main__":
     # General usage:
@@ -515,21 +636,22 @@ if __name__ == "__main__":
     ########################### SETUP THE EXPERIMENT ###########################
 
     experiment_type = "node"
-    t_type = "sin"  # "impulse" or "sin"
+    t_type = "impulse"  # "impulse" or "sin"
     total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
+    NOISE = "white"      # "white", "speckle", "gaussian", "perlin"
 
     plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
-    plot_path = None
+    #plot_path = None
 
-    row_impulse = Experiment(grid_size, ds, dt, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
+    row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
 
     ############################## Experiment 1-6 ##############################
 
     # "2_transducers" Experiment
-    # row_impulse.plot_2_transducers()
+    #row_impulse.plot_2_transducers()
 
     # "row_transducers" Experiment
-    # row_impulse.plot_row_transducers()
+    #row_impulse.plot_row_transducers()
 
     # "var_transducers" Experiment
     # row_impulse.plot_var_transducers()
@@ -542,6 +664,11 @@ if __name__ == "__main__":
     # row_impulse.plot_interference(additoonal_path=additiona_path)
 
     # "error_test" Experiment
-    test_subject = "ds"  # "ds" or "dt"
+    test_subject = "noise"  # "ds", "dt", or "noise"
     row_impulse.error_test(test_subject)
 
+    # "1_noise_transducers" Experiment
+    #row_impulse.plot_1_noise_transducers()
+
+    # "noise_threshold" Experiment
+    #row_impulse.noise_threshold()
