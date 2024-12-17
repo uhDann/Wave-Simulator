@@ -6,7 +6,7 @@ import Sources
 
 
 class WaveSimulation3D:
-    def __init__(self, grid_size, ds, dt, c, boundary="absorbing"):
+    def __init__(self, grid_size, ds, dt, c, pml_width=10, boundary="pml", stability_check=True):
         """
         Initialize the simulation.
 
@@ -29,7 +29,13 @@ class WaveSimulation3D:
 
         self.c = c
 
+        # Initiatie the PML damping profile and boundary conditions
         self.boundary = boundary
+        self.pml_width = pml_width
+
+        # Damping coefficient σ(x, y)
+        self.sigma = np.zeros((self.nx, self.ny, self.nz))
+        self._initialize_pml()
 
         # Wave function at t
         # u[y_i, x_i, z_i]
@@ -45,10 +51,40 @@ class WaveSimulation3D:
         self.time = 0
 
         # Stability condition (Courant condition)
-        self.stability_limit = c * dt / ds
-        if self.stability_limit > (1 / 3):
-            raise ValueError(
-                "Stability condition violated. Reduce dt or increase ds.")
+        if stability_check:
+            self.stability_limit = c * dt / ds
+            if self.stability_limit > (1 / 3):
+                raise ValueError(
+                    "Stability condition violated. Reduce dt or increase ds.")
+
+    def _initialize_pml(self):
+        """Define the PML damping profile."""
+        # TODO: Is this correct indexing?
+        # Initialize sigma_x, sigma_y, and sigma_z to handle damping separately along axes
+        sigma_x = np.zeros((self.nx, 1, 1))  # Along x-axis
+        sigma_y = np.zeros((1, self.ny, 1))  # Along y-axis
+        sigma_z = np.zeros((1, 1, self.nz))  # Along z-axis
+
+        # Quadratic damping profile for x-direction
+        for i in range(self.nx):
+            dx = min(i, self.nx - 1 - i) / self.pml_width
+            if dx < 1.0:
+                sigma_x[i, 0, 0] = (1 - dx) ** 2
+
+        # Quadratic damping profile for y-direction
+        for j in range(self.ny):
+            dy = min(j, self.ny - 1 - j) / self.pml_width
+            if dy < 1.0:
+                sigma_y[0, j, 0] = (1 - dy) ** 2
+
+        # Quadratic damping profile for z-direction
+        for k in range(self.nz):
+            dz = min(k, self.nz - 1 - k) / self.pml_width
+            if dz < 1.0:
+                sigma_z[0, 0, k] = (1 - dz) ** 2
+
+        # Combine damping profiles: Sum or take max for uniform edge damping
+        self.sigma = sigma_x + sigma_y + sigma_z  # Uniform damping near edges
 
     def add_source(self, source_function):
         """
@@ -78,20 +114,17 @@ class WaveSimulation3D:
                         self.u[i, j, k + 1] + self.u[i, j, k - 1] -
                         6 * self.u[i, j, k]
                     ) / ds2
+
+                    source_contribution = 0
+                    for source in self.sources:
+                        source_contribution += source(
+                            i * self.ds, j * self.ds, k * self.ds, self.time)
+
                     self.u_next[i, j, k] = (
                         2 * self.u[i, j, k]
                         - self.u_prev[i, j, k]
-                        + c2 * dt2 * laplacian
+                        + c2 * dt2 * (laplacian + source_contribution)
                     )
-
-        # Add sources
-        for source in self.sources:
-            for i in range(self.nx):
-                for j in range(self.ny):
-                    for k in range(self.nz):
-                        self.u_next[i, j, k] += self.dt ** 2 * \
-                            source(i * self.ds, j * self.ds,
-                                   k * self.ds, self.time)
 
         # Apply boundary conditions
         if self.boundary == "reflective":
@@ -101,19 +134,46 @@ class WaveSimulation3D:
             self.u_next[:, -1, :] = self.u_next[:, -2, :]
             self.u_next[:, :, 0] = self.u_next[:, :, 1]
             self.u_next[:, :, -1] = self.u_next[:, :, -2]
-        elif self.boundary == "absorbing":
-            self.u_next[0, :, :] = 0
-            self.u_next[-1, :, :] = 0
-            self.u_next[:, 0, :] = 0
-            self.u_next[:, -1, :] = 0
-            self.u_next[:, :, 0] = 0
-            self.u_next[:, :, -1] = 0
+        elif self.boundary == "pml":
+            self.u_next *= np.exp(-self.sigma * self.dt)
+        elif self.boundary == "mur":
+            pass
+            # Apply Mur absorbing boundary condition
+            # Misha's attempt. idk if it works pls delete if not.
+            # self.u_next[0, :, :] = self.u[1, :, :] + (self.c * self.dt - self.ds) / (
+            #     self.c * self.dt + self.ds) * (self.u_next[1, :, :] - self.u[0, :, :])
+            #
+            # self.u_next[-1, :, :] = self.u[-2, :, :] + (self.c * self.dt - self.ds) / (
+            #     self.c * self.dt + self.ds) * (self.u_next[-2, :, :] - self.u[-1, :, :])
+            #
+            # self.u_next[:, 0, :] = self.u[:, 1, :] + (self.c * self.dt - self.ds) / (
+            #     self.c * self.dt + self.ds) * (self.u_next[:, 1, :] - self.u[:, 0, :])
+            #
+            # self.u_next[:, -1, :] = self.u[:, -2, :] + (self.c * self.dt - self.ds) / (
+            #     self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
 
-        # Update time step
+            # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
         self.time += self.dt
 
-    def plot(self, z_slice, vmin=-1.0, vmax=1.0):
+    def plot_pml_profile(self, z_slice):
+        """
+        Plot the PML damping profile.
+        Parameters:
+        z_slice: int
+            Index of the grid to plot a slice at.
+        """
+        plt.figure()
+        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0,
+                   self.ny * self.ds), cmap='viridis', origin='lower')
+        plt.colorbar(label="Damping Coefficient")
+        plt.title("PML Damping Profile")
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.savefig("MSFigures/2D/pml_profile.png")
+        plt.show()
+
+    def plot(self, z_slice, ax=None, vmin=-1.0, vmax=1.0):
         """
         Plot slice of the current field with a fixed color range at the given at the given z index.
 
@@ -130,14 +190,22 @@ class WaveSimulation3D:
         if vmin is None or vmax is None:
             vmin, vmax = np.min(self.u), np.max(self.u)
 
-        plt.imshow(self.u[:, :, z_slice], extent=(
-            0, self.nx * self.ds, 0, self.ny * self.ds), cmap='viridis', origin='lower', vmin=vmin, vmax=vmax)
+        if ax is None:
+            fig, ax = plt.subplots()
 
-        plt.colorbar(label="Pressure")
-        plt.title(f"Time: {self.time:.2f} s at z = {z_slice * self.ds:.2f}")
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.show()
+        im = ax.imshow(
+            self.u[:, :, z_slice], extent=(
+                0, self.nx * self.ds, 0, self.ny * self.ds),
+            cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
+        )
+        ax.set_title(f"Time: {self.time:.2f} s at z = {z_slice * self.ds:.2f}")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        if ax is None:
+            plt.colorbar(im, ax=ax, label="Pressure")
+            plt.show()
+
+        return im
 
     def run_simulation(self, steps, z_slice, vmin=None, vmax=None, plot_interval=1):
         """
