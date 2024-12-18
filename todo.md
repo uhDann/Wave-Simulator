@@ -1,6 +1,18 @@
-<!-- 1. Fix pseudocode -->
-<!-- 2. Fix green's function -->
+Misha:
 
-3. Explain how we simulate the sources
-4. Explain Danila's experiment with changing ds and dt
-5. NYT if free time
+- Refine source generation explanation
+
+Danila:
+
+- Review Misha's explanation of varying dt ds experiment
+- Merge Misha's new branch into main
+
+Charlene:
+
+- Finish up noise experiments
+
+Everyone:
+
+- NYT if free time
+- Tidy up the experiment code
+- Grammar check on paper
