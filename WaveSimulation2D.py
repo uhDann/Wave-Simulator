@@ -232,7 +232,7 @@ class WaveSimulation2D:
             self.u, extent=(0, self.nx * self.ds, 0, self.ny * self.ds),
             cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
         )
-        ax.set_title(f"Time: {self.time-0.01:.2f} s")
+        ax.set_title(f"Time: {self.time-self.dt:.2f} s")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         if ax is None:
@@ -695,9 +695,9 @@ if __name__ == "__main__":
 
     ########################### SETUP THE EXPERIMENT ###########################
 
-    experiment_type = "node"
+    experiment_type = "dt_error"
     t_type = "sin"  # "impulse" or "sin"
-    total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
+    total_time = 3      # Recomended: 6 sec for impulse, 10 sec for sin
     NOISE = None      # None, "white", "speckle", "gaussian", "perlin"
 
     # Pass None to animate
