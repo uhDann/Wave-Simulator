@@ -6,9 +6,6 @@ from tqdm import tqdm
 
 import Sources
 
-NOISE = "white"
-
-
 class WaveSimulation2D:
     def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
         """
