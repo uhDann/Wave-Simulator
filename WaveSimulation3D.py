@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as np
 from tqdm import tqdm
 
@@ -170,39 +171,87 @@ class WaveSimulation3D:
         plt.savefig("MSFigures/2D/pml_profile.png")
         plt.show()
 
-    def plot(self, z_slice, ax=None, vmin=-1.0, vmax=1.0):
+    def plot(self, z_slice=None, point1=None, point2=None, ax=None, vmin=-1.0, vmax=1.0):
         """
-        Plot slice of the current field with a fixed color range at the given at the given z index.
+        Plot slice of the current field with a fixed color range at the given z index or along a plane created by two points.
 
         Parameters:
-        z_slice: int
-            Index of the grid to plot a slice at.
-        vmin: float
+        z_slice: int, optional
+            Index of the grid to plot a slice at along the z-axis.
+        point1: tuple of int, optional
+            First point (x, y) to define a vertical plane.
+        point2: tuple of int, optional
+            Second point (x, y) to define a vertical plane.
+        vmin: float, optional
             Minimum value for the color scale.
-        vmax: float
+        vmax: float, optional
             Maximum value for the color scale.
 
         """
-        # Default to the current range of the current pressure field
-        if vmin is None or vmax is None:
-            vmin, vmax = np.min(self.u), np.max(self.u)
+        if z_slice is not None:
+            # Default to the current range of the current pressure field
+            if vmin is None or vmax is None:
+                vmin, vmax = np.min(self.u), np.max(self.u)
 
-        if ax is None:
-            fig, ax = plt.subplots()
+            if ax is None:
+                fig, ax = plt.subplots()
 
-        im = ax.imshow(
-            self.u[:, :, z_slice], extent=(
-                0, self.nx * self.ds, 0, self.ny * self.ds),
-            cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
-        )
-        ax.set_title(f"Time: {self.time:.2f} s at z = {z_slice * self.ds:.2f}")
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        if ax is None:
-            plt.colorbar(im, ax=ax, label="Pressure")
-            plt.show()
+            im = ax.imshow(
+                self.u[:, :, z_slice], extent=(
+                    0, self.nx * self.ds, 0, self.ny * self.ds),
+                cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
+            )
+            ax.set_title(f"t: {self.time-self.dt:.2f}s at z = {z_slice * self.ds:.2f}")
+            ax.set_xlabel("x")
+            ax.set_ylabel("y")
+            if ax is None:
+                plt.colorbar(im, ax=ax, label="Pressure")
+                plt.show()
 
-        return im
+            return im
+
+        elif point1 is not None and point2 is not None:
+            # Extract the coordinates
+            x1, y1 = point1
+            x2, y2 = point2
+
+            # Calculate the plane equation coefficients (ax + by = d)
+            a = y1 - y2
+            b = x2 - x1
+            d = a * x1 + b * y1
+
+            # Create a grid for the plane
+            xx, zz = np.meshgrid(np.arange(self.nx), np.arange(self.nz))
+            yy = (d - a * xx) / b
+
+            # Interpolate the field values on the plane
+            plane_slice = np.zeros_like(xx, dtype=float)
+            for i in range(self.nx):
+                for j in range(self.nz):
+                    if 0 <= yy[j, i] < self.ny:
+                        plane_slice[j, i] = self.u[i, int(yy[j, i]), j]
+
+            if vmin is None or vmax is None:
+                vmin, vmax = np.min(plane_slice), np.max(plane_slice)
+
+            if ax is None:
+                fig, ax = plt.subplots()
+
+            im = ax.imshow(
+                plane_slice, extent=(
+                    0, self.nx * self.ds, 0, self.nz * self.ds),
+                cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
+            )
+            ax.set_title(f"t: {self.time-self.dt:.2f}s along plane def by {point1} and {point2}")
+            ax.set_xlabel("x")
+            ax.set_ylabel("z")
+            if ax is None:
+                plt.colorbar(im, ax=ax, label="Pressure")
+                plt.show()
+
+            return im
+        else:
+            raise ValueError("Either z_slice or both point1 and point2 must be provided.")
 
     def run_simulation(self, steps, z_slice, vmin=None, vmax=None, plot_interval=1):
         """
@@ -297,30 +346,56 @@ class Experiment3D:
         self.start_time = start_time
         self.total_time = total_time
         if t_type not in ["impulse", "sin", "both"]:
-            raise ValueError("Invalid source type. Use 'impulse' or 'sin'.")
+            raise ValueError("Invalid source type. Use 'impulse' or 'sin' or 'both'.")
         self.t_type = t_type
         self.plot_path = plot_path
 
         if plot_path is None:
             print("[INFO] No plot_path passed, where possible the animation will be displayed. For some tests, only the plot will be displayed.")
 
-    def _animate(self):
+    def _animate(self, z_slice=None):
         '''Internal method to animate the simulation.'''
-        self.sim.run_simulation(steps=int(self.total_time / self.sim.dt) + 1, z_slice=self.grid_size[2] // 2, vmin=-1, vmax=1, plot_interval=1)
 
-    def _plot(self):
+        if z_slice is None:
+            z_slice = self.grid_size[2] // 2
+        self.sim.run_simulation(steps=int(self.total_time / self.sim.dt) + 1, z_slice=z_slice, vmin=-1, vmax=1, plot_interval=1)
+
+    def _plot(self, z_slice=None, point1=None, point2=None):
         '''Internal method to plot the simulation.'''
+
+        if z_slice is None:
+            z_slice = self.grid_size[2] // 2
 
         # Number of subplots
         num_subplots = self.rows * self.cols
         time_step = (self.total_time - self.start_time) / (num_subplots - 1)
         self.start_time /= 0.01
 
-        # Create figure and subplots
-        # Create figure and subplots
-        fig, axes = plt.subplots(self.rows, self.cols, figsize=(20, 8), constrained_layout=True)
-        axes = axes.flatten()
+        if point1 is not None and point2 is not None:
+            # Create figure with GridSpec for z-slice and plane slice
+            fig = plt.figure(figsize=(20, 16), constrained_layout=True)
+            spec = GridSpec(2 * self.rows, self.cols, figure=fig)
+        else:
+            # Create figure with GridSpec for z-slice only
+            fig = plt.figure(figsize=(20, 8), constrained_layout=True)
+            spec = GridSpec(self.rows, self.cols, figure=fig)
+
         plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
+
+        im_z = None
+        im_plane = None
+
+        axes = []
+        # Top row for z-slice
+        for row in range(self.rows):
+            for col in range(self.cols):
+                axes.append(fig.add_subplot(spec[row, col]))
+
+        # Bottom row for plane slice (if applicable)
+        if point1 is not None and point2 is not None:
+            for row in range(self.rows, 2 * self.rows):
+                for col in range(self.cols):
+                    axes.append(fig.add_subplot(spec[row, col]))
 
         for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
             if self.sim.noise is not None:
@@ -331,27 +406,63 @@ class Experiment3D:
             if i >= self.start_time and i % plot_step == 0:
                 subplot_index = i // plot_step
                 if subplot_index < num_subplots:
-                    im = self.sim.plot(ax=axes[subplot_index], z_slice=self.grid_size[2] // 2)
-        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+                    im_z = self.sim.plot(ax=axes[subplot_index], z_slice=z_slice, vmin=-1, vmax=1)
+                    if point1 is not None and point2 is not None:
+                        im_plane = self.sim.plot(ax=axes[subplot_index + num_subplots], point1=point1, point2=point2, vmin=-1, vmax=1)
+
+        # Add shared colorbar for consistency
+        cbar = fig.colorbar(im_z, ax=axes, orientation='vertical', fraction=0.02, pad=0.02)
+        cbar.set_label('Wave Amplitude')
+
+        # Save or display
+        if self.plot_path is not None and point1 is not None and point2 is not None:
+            plt.savefig(self.plot_path.replace('.png', '_combined.png'), dpi=300, bbox_inches='tight')
+        elif self.plot_path is not None:
+            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
     def plot_2_transducers(self):
         '''Plots the wave field for two transducers in a random central location.'''
 
+        point1 = [4, 4, 0]
+        point2 = [2, 2, 0]
         # Add the selected sources to the simulation
         if self.t_type == "impulse":
-            self.sim.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 0, 0.02))
-            self.sim.add_source(Sources.create_impulse_source_3D(10000, 6, 6, 0, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_3D(10e39, point1[0], point1[1], point1[2]+0.01, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_3D(10e39, point2[0], point2[1], point2[2]+0.01, 0.02))
         elif self.t_type == "sin":
-            self.sim.add_source(Sources.create_sinusoidal_source_3D(10, 1, 4, 4, 0))
-            self.sim.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 0))
+            self.sim.add_source(Sources.create_sinusoidal_source_3D(50, 1, point1[0], point1[1], point1[2]))
+            self.sim.add_source(Sources.create_sinusoidal_source_3D(50, 1, point2[0], point2[1], point2[2]))
 
         if self.plot_path is not None:
-            self._plot()
+            self._plot(z_slice=grid_size[2] // 4, point1=point1[:-1], point2=point2[:-1])
         else:
             self._animate()
 
+    def plot_grid_transducers(self):
+        '''Plots the wave field for a grid of chosen transducers.'''
+
+        point1 = [4, 4, 0]
+        point2 = [2, 2, 0]
+
+        # Add the selected sources to the simulation
+        if self.t_type == "impulse":
+            for i in range(1, 5):
+                for j in range(1, 5):
+                    self.sim.add_source(
+                        Sources.create_impulse_source_3D(10e39, i, j, 0.01, 0.02))
+        elif self.t_type == "sin":
+            for i in range(0, 6):
+                for j in range(0, 6):
+                    self.sim.add_source(
+                        Sources.create_sinusoidal_source_3D(50, 1, i, j, 0))
+
+        if self.plot_path is not None:
+            self._plot(z_slice=grid_size[2] // 4, point1=point1[:-1], point2=point2[:-1])
+        else:
+            self._animate()
+    
+    # BE AWARE: This method is not tested yet
     def error_test(self, test_subject):
         '''Plots the wave field for different values of the error parameter (dt or ds).
         
@@ -382,14 +493,14 @@ class Experiment3D:
                     new_env = WaveSimulation3D(self.grid_size, param, self.sim.dt, self.sim.c, boundary=self.sim.boundary)
 
                 if self.t_type == "impulse":
-                    new_env.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 4, 0.02))
-                    new_env.add_source(Sources.create_impulse_source_3D(10000, 6, 6, 6, 0.02))
+                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 4, 4, 0.01, 0.02))
+                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 6, 6, 0.01, 0.02))
                 elif self.t_type == "sin":
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 4, 4, 4))
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 6))
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 4, 4, 0))
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 6, 6, 0))
                 elif self.t_type == "both":
-                    new_env.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 4, 0.02))
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 6))
+                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 4, 4, 0.01, 0.02))
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 6, 6, 0))
 
                 # Run the simulation up to 3 seconds
                 for _ in tqdm(range(int(3 / new_env.dt))):
@@ -426,7 +537,7 @@ if __name__ == "__main__":
 
     ##################### SETUP THE ENVIRONMENT PARAMETERS #####################
     # Dimensions of grid
-    grid_size = (100, 100, 20)
+    grid_size = (50, 50, 50)
     # Difference in distance between grid points
     ds = 0.1
     # Time step
@@ -437,8 +548,8 @@ if __name__ == "__main__":
     ########################### SETUP THE EXPERIMENT ###########################
 
     experiment_type = "2transducers"  # "dt_error", "ds_error"
-    t_type = "sin"  # "impulse" or "sin"
-    total_time = 3      # Recommended: 6 sec for impulse, 10 sec for sin
+    t_type = "impulse"  # "impulse" or "sin"
+    total_time = 5      # Recommended: 6 sec for impulse, 10 sec for sin
     NOISE = None     # "white", "speckle", "gaussian", "perlin"
 
     plot_path = f"MSFigures/3D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
@@ -449,43 +560,4 @@ if __name__ == "__main__":
     ############################## Experiment ##############################
 
     # "2_transducers" Experiment
-    experiment.plot_2_transducers()
-
-    # # "error_test" Experiment
-    # test_subject = "dt"  # "ds" or "dt"
-    # experiment.error_test(test_subject)
-
-# if __name__ == "__main__":
-#     # General usage:
-#     # 1. Specify simulation parameters
-#     # 2. Create a simulation object
-#     # 3. Add sources to the simulation, there are some define in Sources.py
-#     # 4. Either manually step the simulation or run with animatd plotting
-
-#     # Dimensions of grid
-#     grid_size = (100, 100, 100)
-
-#     # Difference in distance between grid points
-#     ds = 0.1
-
-#     # Time step
-#     dt = 0.01
-
-#     # Speed of sound in medium
-#     c = 1.0
-
-#     sim = WaveSimulation3D(grid_size, ds, dt, c, boundary="absorbing")
-
-#     sim.add_source(Sources.create_sinusoidal_source_3D(
-#         amplitude=10.0, frequency=1.0, x0=5, y0=2, z0=5))
-
-#     sim.run_simulation(steps=300, z_slice=50, vmin=-
-#                        1, vmax=1, plot_interval=1)
-
-#     # Step manually and plot
-#     # for _ in tqdm(range(300)):
-#     #     sim.step()
-#     #     if _ % 30 == 0:
-#     #         # Plotting is blocking
-#     #         # Plot at the middle z-slice
-#     #         sim.plot(z_slice=50)
+    experiment.plot_grid_transducers()
