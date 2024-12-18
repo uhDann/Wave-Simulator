@@ -539,7 +539,7 @@ class Experiment:
                         Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
                 # Run the simulation up to 3 seconds
-                for _ in tqdm(range(int(3 / dt))):
+                for _ in tqdm(range(int(3 / new_env.dt))):
                     new_env.step()
 
                 # Plot at 2 seconds
@@ -555,7 +555,7 @@ class Experiment:
         axes = axes.flatten()
 
         if test_subject == "dt":
-            param_values = np.linspace(self.sim.dt, 1, 6)
+            param_values = np.linspace(self.sim.dt, 0.1, 6)
             im = run_simulation_and_plot("dt", param_values, axes)
         elif test_subject == "ds":
             param_values = np.linspace(self.sim.ds, 0.5, 6)
@@ -727,7 +727,7 @@ if __name__ == "__main__":
     # row_impulse.plot_interference(additoonal_path=additiona_path)
 
     # "error_test" Experiment
-    test_subject = "ds"  # "ds", "dt", or "noise"
+    test_subject = "dt"  # "ds", "dt", or "noise"
     row_impulse.error_test(test_subject)
 
     # "1_noise_transducers" Experiment
