@@ -6,7 +6,7 @@ import Sources
 
 
 class WaveSimulation3D:
-    def __init__(self, grid_size, ds, dt, c, pml_width=10, boundary="pml", stability_check=True):
+    def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
         """
         Initialize the simulation.
 
@@ -32,6 +32,7 @@ class WaveSimulation3D:
         # Initiatie the PML damping profile and boundary conditions
         self.boundary = boundary
         self.pml_width = pml_width
+        self.noise = noise
 
         # Damping coefficient σ(x, y)
         self.sigma = np.zeros((self.nx, self.ny, self.nz))
@@ -258,37 +259,233 @@ class WaveSimulation3D:
         plt.show()
 
 
+class Experiment3D:
+    def __init__(self, grid_size, ds, dt, noise, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
+        '''
+        Initialize the experiment with the simulation parameters and plot parameters.
+        
+        Parameters:
+            grid_size: Tuple (nx, ny, nz)
+                Spatial grid dimensions.
+            ds: float
+                Spatial step size.
+            dt: float
+                Time step size.
+            noise: str
+                Type of noise to add. Options are 'white', 'speckle', 'gaussian', 'perlin'.
+            c: float
+                Speed of sound in the medium.
+            boundary: str
+                Boundary condition type ("reflective", "absorbing" or "mur").
+            t_type: str
+                Type of source ("impulse" or "sin").
+            start_time: float
+                Time to start plotting.
+            total_time: float
+                Total time to run the simulation.
+            plot_path: str
+                Path to save the plot. If None, the plot is animated.
+        '''
+        
+        # Initialize the simulation environment
+        self.sim = WaveSimulation3D(grid_size, ds, dt, c, boundary=boundary)
+
+        # Save the experiment parameters
+        self.grid_size = grid_size
+        self.rows = rows
+        self.cols = cols
+        self.start_time = start_time
+        self.total_time = total_time
+        if t_type not in ["impulse", "sin", "both"]:
+            raise ValueError("Invalid source type. Use 'impulse' or 'sin'.")
+        self.t_type = t_type
+        self.plot_path = plot_path
+
+        if plot_path is None:
+            print("[INFO] No plot_path passed, where possible the animation will be displayed. For some tests, only the plot will be displayed.")
+
+    def _animate(self):
+        '''Internal method to animate the simulation.'''
+        self.sim.run_simulation(steps=int(self.total_time / self.sim.dt) + 1, z_slice=self.grid_size[2] // 2, vmin=-1, vmax=1, plot_interval=1)
+
+    def _plot(self):
+        '''Internal method to plot the simulation.'''
+
+        # Number of subplots
+        num_subplots = self.rows * self.cols
+        time_step = (self.total_time - self.start_time) / (num_subplots - 1)
+        self.start_time /= 0.01
+
+        # Create figure and subplots
+        # Create figure and subplots
+        fig, axes = plt.subplots(self.rows, self.cols, figsize=(20, 8), constrained_layout=True)
+        axes = axes.flatten()
+        plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
+
+        for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
+            if self.sim.noise is not None:
+                self.sim.step(addNoise=True, noise_amplitude=0.001)
+            else:
+                self.sim.step()
+
+            if i >= self.start_time and i % plot_step == 0:
+                subplot_index = i // plot_step
+                if subplot_index < num_subplots:
+                    im = self.sim.plot(ax=axes[subplot_index], z_slice=self.grid_size[2] // 2)
+        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+        plt.show()
+
+    def plot_2_transducers(self):
+        '''Plots the wave field for two transducers in a random central location.'''
+
+        # Add the selected sources to the simulation
+        if self.t_type == "impulse":
+            self.sim.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 0, 0.02))
+            self.sim.add_source(Sources.create_impulse_source_3D(10000, 6, 6, 0, 0.02))
+        elif self.t_type == "sin":
+            self.sim.add_source(Sources.create_sinusoidal_source_3D(10, 1, 4, 4, 0))
+            self.sim.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 0))
+
+        if self.plot_path is not None:
+            self._plot()
+        else:
+            self._animate()
+
+    def error_test(self, test_subject):
+        '''Plots the wave field for different values of the error parameter (dt or ds).
+        
+        Parameters:
+            test_subject: str'''
+
+        def run_simulation_and_plot(param_name, param_values, ax):
+            '''Internal method to run the simulation for different values of the error parameter and plot the results.
+            
+            Parameters:
+                param_name: str
+                    Name of the error parameter.
+                param_values: array-like
+                    Values of the error parameter to test.
+                ax: matplotlib.axes.Axes
+                    Axes to plot the results.
+        
+            Returns:
+                im: matplotlib.image.AxesImage
+                    Image object for the colorbar.
+            '''
+            for param in param_values:
+                print(f"Running for {param_name} = {param}")
+
+                if param_name == "dt":
+                    new_env = WaveSimulation3D(self.grid_size, self.sim.ds, param, self.sim.c, boundary=self.sim.boundary)
+                elif param_name == "ds":
+                    new_env = WaveSimulation3D(self.grid_size, param, self.sim.dt, self.sim.c, boundary=self.sim.boundary)
+
+                if self.t_type == "impulse":
+                    new_env.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 4, 0.02))
+                    new_env.add_source(Sources.create_impulse_source_3D(10000, 6, 6, 6, 0.02))
+                elif self.t_type == "sin":
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 4, 4, 4))
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 6))
+                elif self.t_type == "both":
+                    new_env.add_source(Sources.create_impulse_source_3D(10000, 4, 4, 4, 0.02))
+                    new_env.add_source(Sources.create_sinusoidal_source_3D(10, 1, 6, 6, 6))
+
+                # Run the simulation up to 3 seconds
+                for _ in tqdm(range(int(3 / new_env.dt))):
+                    new_env.step()
+
+                # Plot at 2 seconds
+                im = new_env.plot(ax=ax, z_slice=10)
+                ax.set_title(f"Simulation step: {param_name} = {param:.3f}")
+
+                del new_env
+            return im
+        
+        fig, ax = plt.subplots(figsize=(10, 8), constrained_layout=True)
+
+        if test_subject == "dt":
+            param_values = np.linspace(0.01, 1, 6)
+            im = run_simulation_and_plot("dt", param_values, ax)
+        elif test_subject == "ds":
+            param_values = np.linspace(0.01, 0.7, 6)
+            im = run_simulation_and_plot("ds", param_values, ax)
+
+        fig.colorbar(im, ax=ax, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        if self.plot_path is not None:
+            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+        plt.show()
+
 if __name__ == "__main__":
     # General usage:
     # 1. Specify simulation parameters
     # 2. Create a simulation object
     # 3. Add sources to the simulation, there are some define in Sources.py
-    # 4. Either manually step the simulation or run with animatd plotting
+    # 4. Either manually step the simulation or run with animated plotting
+    # 5. Alternatively, run the simulation for the desired experiment
 
+    ##################### SETUP THE ENVIRONMENT PARAMETERS #####################
     # Dimensions of grid
-    grid_size = (100, 100, 100)
-
+    grid_size = (100, 100, 20)
     # Difference in distance between grid points
     ds = 0.1
-
     # Time step
     dt = 0.01
-
     # Speed of sound in medium
     c = 1.0
 
-    sim = WaveSimulation3D(grid_size, ds, dt, c, boundary="absorbing")
+    ########################### SETUP THE EXPERIMENT ###########################
 
-    sim.add_source(Sources.create_sinusoidal_source_3D(
-        amplitude=10.0, frequency=1.0, x0=5, y0=2, z0=5))
+    experiment_type = "2transducers"  # "dt_error", "ds_error"
+    t_type = "sin"  # "impulse" or "sin"
+    total_time = 3      # Recommended: 6 sec for impulse, 10 sec for sin
+    NOISE = None     # "white", "speckle", "gaussian", "perlin"
 
-    sim.run_simulation(steps=300, z_slice=50, vmin=-
-                       1, vmax=1, plot_interval=1)
+    plot_path = f"MSFigures/3D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
+    #plot_path = None
 
-    # Step manually and plot
-    # for _ in tqdm(range(300)):
-    #     sim.step()
-    #     if _ % 30 == 0:
-    #         # Plotting is blocking
-    #         # Plot at the middle z-slice
-    #         sim.plot(z_slice=50)
+    experiment = Experiment3D(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
+
+    ############################## Experiment ##############################
+
+    # "2_transducers" Experiment
+    experiment.plot_2_transducers()
+
+    # # "error_test" Experiment
+    # test_subject = "dt"  # "ds" or "dt"
+    # experiment.error_test(test_subject)
+
+# if __name__ == "__main__":
+#     # General usage:
+#     # 1. Specify simulation parameters
+#     # 2. Create a simulation object
+#     # 3. Add sources to the simulation, there are some define in Sources.py
+#     # 4. Either manually step the simulation or run with animatd plotting
+
+#     # Dimensions of grid
+#     grid_size = (100, 100, 100)
+
+#     # Difference in distance between grid points
+#     ds = 0.1
+
+#     # Time step
+#     dt = 0.01
+
+#     # Speed of sound in medium
+#     c = 1.0
+
+#     sim = WaveSimulation3D(grid_size, ds, dt, c, boundary="absorbing")
+
+#     sim.add_source(Sources.create_sinusoidal_source_3D(
+#         amplitude=10.0, frequency=1.0, x0=5, y0=2, z0=5))
+
+#     sim.run_simulation(steps=300, z_slice=50, vmin=-
+#                        1, vmax=1, plot_interval=1)
+
+#     # Step manually and plot
+#     # for _ in tqdm(range(300)):
+#     #     sim.step()
+#     #     if _ % 30 == 0:
+#     #         # Plotting is blocking
+#     #         # Plot at the middle z-slice
+#     #         sim.plot(z_slice=50)

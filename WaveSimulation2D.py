@@ -143,7 +143,6 @@ class WaveSimulation2D:
 
         self.u += noise
 
-    # TODO: "absorbing" and "pml" do not work as expected yet
     def step(self, addNoise=False, noise_amplitude=0.001):
         """
         Perform one time step of the simulation.
