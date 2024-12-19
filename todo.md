@@ -34,7 +34,6 @@ Danila
 - Finish up analysis of the E2 and E3 √
 - Talk about the specific objectives, maybe incorporate our roadmap/plan √
 - Theoretical Background:
-  - Check that we hit all of the relevant mathematical topics
-- Maybe do a bit discussion and concluisions
+  - Check that we hit all of the relevant mathematical topics √
 - Clean up the code + check -> Make sure its in the submisson stage √
-- Generate the UML Diagrams 
+- Generate the UML Diagrams √
