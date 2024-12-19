@@ -1,12 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from tqdm import tqdm
-from scipy.ndimage import gaussian_filter
 from noise import pnoise2
+from scipy.ndimage import gaussian_filter
+from tqdm import tqdm
 
 import Sources
-
-NOISE = "white"
 
 class WaveSimulation2D:
     def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
@@ -22,8 +20,14 @@ class WaveSimulation2D:
             Time step size.
         c: float
             Speed of sound in the medium.
+        noise: str
+            Type of noise to add. Options are None, "white", "speckle", "gaussian", "perlin"
+        pml_width: int
+            Width of the perfectly matched layer (PML) in grid points.
         boundary: str
             Boundary condition type ("reflective" or "absorbing").
+        stability_check: bool
+            Whether to run the Courant condition check.
         """
         self.nx, self.ny = grid_size
 
@@ -84,7 +88,6 @@ class WaveSimulation2D:
         # Combine damping profiles: Sum or take max for uniform edge damping
         self.sigma = sigma_x + sigma_y  # Uniform damping near edges
 
-
     def add_source(self, source_function):
         """
         Add a source to the simulation.
@@ -114,11 +117,13 @@ class WaveSimulation2D:
         """
         # Environment/system noise
         # Fine-grained random variations, overall roughness/grain
-        if noise_type == "white": 
-            noise = np.random.uniform(low=-amplitude, high=amplitude, size=self.u.shape)
+        if noise_type == "white":
+            noise = np.random.uniform(
+                low=-amplitude, high=amplitude, size=self.u.shape)
         # Creates complex, multi-scale textures (rough terrains, turbulent patterns)
-        elif noise_type == "speckle": 
-            noise = self.u * np.random.normal(1.0, amplitude, size=self.u.shape)
+        elif noise_type == "speckle":
+            noise = self.u * \
+                np.random.normal(1.0, amplitude, size=self.u.shape)
 
         # Texture noise
         # Smooth random variations, overall smoothness
@@ -127,10 +132,12 @@ class WaveSimulation2D:
             noise = gaussian_filter(orig_noise, sigma=2)
         # Natural looking textures (clouds, terrain, waves)
         elif noise_type == "perlin":
-            noise = self.perlin_noise(self.u.shape, scale=20.0, amplitude=amplitude)
+            noise = self.perlin_noise(
+                self.u.shape, scale=20.0, amplitude=amplitude)
         else:
-            raise ValueError("Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin'.")
-        
+            raise ValueError(
+                "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin'.")
+
         self.u += noise
 
     def calculate_snr(self, signal, noise_amplitude):
@@ -187,10 +194,14 @@ class WaveSimulation2D:
             self.u_next *= np.exp(-self.sigma * self.dt)
         elif self.boundary == "mur":
             # Apply Mur absorbing boundary condition
-            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
-            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
-            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
-            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
+            self.u_next[0, :] = self.u[1, :] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[1, :] - self.u[0, :])
+            self.u_next[-1, :] = self.u[-2, :] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[-2, :] - self.u[-1, :])
+            self.u_next[:, 0] = self.u[:, 1] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[:, 1] - self.u[:, 0])
+            self.u_next[:, -1] = self.u[:, -2] + (self.c * self.dt - self.ds) / (
+                self.c * self.dt + self.ds) * (self.u_next[:, -2] - self.u[:, -1])
 
         # Add noise if specified
         if addNoise:
@@ -203,7 +214,8 @@ class WaveSimulation2D:
     def plot_pml_profile(self):
         """Plot the PML damping profile."""
         plt.figure()
-        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0, self.ny * self.ds), cmap='viridis', origin='lower')
+        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0,
+                   self.ny * self.ds), cmap='viridis', origin='lower')
         plt.colorbar(label="Damping Coefficient")
         plt.title("PML Damping Profile")
         plt.xlabel("x")
@@ -234,7 +246,7 @@ class WaveSimulation2D:
             self.u, extent=(0, self.nx * self.ds, 0, self.ny * self.ds),
             cmap='viridis', origin='lower', vmin=vmin, vmax=vmax
         )
-        ax.set_title(f"Time: {self.time-0.01:.2f} s")
+        ax.set_title(f"Time: {self.time-self.dt:.2f} s")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
         if ax is None:
@@ -297,11 +309,12 @@ class WaveSimulation2D:
         plt.ioff()
         plt.show()
 
+
 class Experiment:
     def __init__(self, grid_size, ds, dt, noise, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
         '''
         Initialize the experiment with the simulation parameters and plot parameters.
-        
+
         Parameters:
             grid_size: Tuple (nx, ny)
                 Spatial grid dimensions.
@@ -341,11 +354,12 @@ class Experiment:
                 Plots the wave field for different values of the error parameter (dt or ds).
             6. plot_interference
                 Plots the interference pattern of the wave field. Must be used after running one of the previous experiments.
-        
+
             '''
-        
+
         # Initialize the simulation environment
-        self.sim = WaveSimulation2D(grid_size, ds, dt, c, noise, boundary=boundary)
+        self.sim = WaveSimulation2D(
+            grid_size, ds, dt, c, noise, boundary=boundary)
 
         # Save the experiment parameters
         self.grid_size = grid_size
@@ -358,9 +372,13 @@ class Experiment:
         self.t_type = t_type
         self.plot_path = plot_path
 
+        if plot_path is None:
+            print("[INFO] No plot_path passed, where possible the animation will be displayed. For some tests, only the plot will be displayed.")
+
     def _animate(self):
         '''Internal method to animate the simulation.'''
-        self.sim.run_simulation(steps=int(self.total_time / 0.01) + 1, vmin=-1, vmax=1, plot_interval=1)
+        self.sim.run_simulation(
+            steps=int(self.total_time / 0.01) + 1, vmin=-1, vmax=1, plot_interval=1)
 
     def _plot(self):
         '''Internal method to plot the simulation.'''
@@ -371,7 +389,8 @@ class Experiment:
         self.start_time /= 0.01
 
         # Create figure and subplots
-        fig, axes = plt.subplots(self.rows, self.cols, figsize=(20, 8), constrained_layout=True)
+        fig, axes = plt.subplots(self.rows, self.cols,
+                                 figsize=(20, 8), constrained_layout=True)
         axes = axes.flatten()
         plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
 
@@ -388,7 +407,8 @@ class Experiment:
                     im = self.sim.plot(ax=axes[subplot_index])
 
         # Add a colorbar one for all subplots
-        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        fig.colorbar(im, ax=axes, orientation='vertical',
+                     fraction=0.05, pad=0.02).set_label('Wave Amplitude')
         plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
@@ -398,38 +418,44 @@ class Experiment:
         # Add the selecred sources to the simulation
         if self.t_type == "impulse":
             for i in range(1, 10, 3):
-                self.sim.add_source(Sources.create_impulse_source_2D(10000, i, 1, 0.02))
+                self.sim.add_source(
+                    Sources.create_impulse_source_2D(10000, i, 1, 0.02))
         elif self.t_type == "sin":
             for i in range(0, 11, 2):
-                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, i, 0))
-        
+                self.sim.add_source(
+                    Sources.create_sinusoidal_source_2D(10, 1, i, 0))
+
         if self.plot_path is not None:
             self._plot()
         else:
             self._animate()
-       
-    
+
     def plot_2_transducers(self):
         '''Plots the wave field for two transducers in a random central location.'''
 
         # Add the selecred sources to the simulation
         if self.t_type == "impulse":
-            self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-            self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+            self.sim.add_source(
+                Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+            self.sim.add_source(
+                Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
         elif self.t_type == "sin":
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+            self.sim.add_source(
+                Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+            self.sim.add_source(
+                Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
         if self.plot_path is not None:
             self._plot()
         else:
             self._animate()
-    
+
     def plot_var_transducers(self):
         '''Plots the wave field for a row of transducers with varying frequencies.'''
 
         # Add the sources to the simulation
-        self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+        self.sim.add_source(
+            Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
         self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 2, 2))
         self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
@@ -437,7 +463,7 @@ class Experiment:
             self._plot()
         else:
             self._animate()
-    
+
     def plot_1_noise_transducers(self):
         """Plots the wave field and finds the threshold of when noise is too disruptive."""
         noise_levels = np.linspace(0.001, 0.1, 10)  # Define a range of noise amplitudes
@@ -492,13 +518,13 @@ class Experiment:
 
     def error_test(self, test_subject):
         '''Plots the wave field for different values of the error parameter (dt or ds).
-        
+
         Parameters:
             test_subject: str'''
 
         def run_simulation_and_plot(param_name, param_values, axes):
             '''Internal method to run the simulation for different values of the error parameter and plot the results.
-            
+
             Parameters:
                 param_name: str
                     Name of the error parameter.
@@ -506,7 +532,7 @@ class Experiment:
                     Values of the error parameter to test.
                 axes: array-like
                     Array of axes to plot the results.
-        
+
             Returns:
                 im: matplotlib.image.AxesImage
                     Image object for the colorbar.
@@ -515,24 +541,35 @@ class Experiment:
                 print(f"Running for {param_name} = {param}")
 
                 if param_name == "dt":
-                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, param, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
+                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, param, self.sim.c,
+                                               self.sim.noise, boundary=self.sim.boundary, stability_check=False)
                 elif param_name == "ds":
-                    new_env = WaveSimulation2D(self.grid_size, param, self.sim.dt, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
+                    new_grid = (
+                        int(self.grid_size[0] * (self.sim.ds / param)), int(self.grid_size[1] * (self.sim.ds / param)))
+                    new_env = WaveSimulation2D(new_grid, param, self.sim.dt, self.sim.c,
+                                               self.sim.noise, boundary=self.sim.boundary, stability_check=False)
                 elif param_name == "noise":
-                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, self.sim.dt, self.sim.c, self.sim.noise, boundary=self.sim.boundary, stability_check=False)
+                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, self.sim.dt, self.sim.c,
+                                               self.sim.noise, boundary=self.sim.boundary, stability_check=False)
 
                 if self.t_type == "impulse":
-                    new_env.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-                    new_env.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+                    new_env.add_source(
+                        Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+                    new_env.add_source(
+                        Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
                 elif self.t_type == "sin":
-                    new_env.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
-                    new_env.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+                    new_env.add_source(
+                        Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+                    new_env.add_source(
+                        Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
                 elif self.t_type == "both":
-                    new_env.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-                    new_env.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+                    new_env.add_source(
+                        Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+                    new_env.add_source(
+                        Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
 
                 # Run the simulation up to 3 seconds
-                for _ in tqdm(range(int(3 / dt))):
+                for _ in tqdm(range(int(3 / new_env.dt))):
                     new_env.step()
 
                 # Plot at 2 seconds
@@ -541,28 +578,30 @@ class Experiment:
 
                 del new_env
             return im
-        
-        fig, axes = plt.subplots(2, 3, figsize=(20, 8), constrained_layout=True)
+
+        fig, axes = plt.subplots(2, 3, figsize=(
+            20, 8), constrained_layout=True)
         axes = axes.flatten()
 
         if test_subject == "dt":
-            param_values = np.linspace(0.01, 1, 6)
+            param_values = np.linspace(self.sim.dt, 0.1, 6)
             im = run_simulation_and_plot("dt", param_values, axes)
         elif test_subject == "ds":
-            param_values = np.linspace(0.01, 0.7, 6)
+            param_values = np.linspace(self.sim.ds, 0.5, 6)
             im = run_simulation_and_plot("ds", param_values, axes)
         elif test_subject == "noise":
             param_values = np.linspace(0.0, 10, 6)
             im = run_simulation_and_plot("noise", param_values, axes)
 
-        fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+        fig.colorbar(im, ax=axes, orientation='vertical',
+                     fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        if self.plot_path is not None:
+            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
-    
     def plot_interference(self, additoonal_path=None):
         '''Plots the interference pattern of the wave field. Must be used after running one of the previous experiments.
-        
+
         Parameters:
             additoonal_path: str
                 Path to save the plot. If None, the plot is displayed.
@@ -570,7 +609,8 @@ class Experiment:
 
         # Check if the simulation has been run
         if self.sim.u is None:
-            raise ValueError("Run the simulation before plotting interference. Select from the available experiments.")
+            raise ValueError(
+                "Run the simulation before plotting interference. Select from the available experiments.")
 
         # Get the wave field data
         combined_wave_field = self.sim.u
@@ -584,34 +624,41 @@ class Experiment:
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(30, 8))
 
         # Plot positive interference
-        ax1.imshow(positive_interference, extent=(0, self.sim.nx * self.sim.ds, 0, self.sim.ny * self.sim.ds), origin='lower', cmap='Reds')
+        ax1.imshow(positive_interference, extent=(0, self.sim.nx * self.sim.ds,
+                   0, self.sim.ny * self.sim.ds), origin='lower', cmap='Reds')
         ax1.set_title('Positive Interference')
         ax1.set_xlabel('X-axis')
         ax1.set_ylabel('Y-axis')
 
         # Plot negative interference
-        ax2.imshow(negative_interference, extent=(0, self.sim.nx * self.sim.ds, 0, self.sim.ny * self.sim.ds), origin='lower', cmap='Blues')
+        ax2.imshow(negative_interference, extent=(0, self.sim.nx * self.sim.ds,
+                   0, self.sim.ny * self.sim.ds), origin='lower', cmap='Blues')
         ax2.set_title('Negative Interference')
         ax2.set_xlabel('X-axis')
         ax2.set_ylabel('Y-axis')
 
         # Plot canceling interference
-        ax3.imshow(canceling_interference, extent=(0, self.sim.nx * self.sim.ds, 0, self.sim.ny * self.sim.ds), origin='lower', cmap='Greens')
+        ax3.imshow(canceling_interference, extent=(0, self.sim.nx * self.sim.ds,
+                   0, self.sim.ny * self.sim.ds), origin='lower', cmap='Greens')
         ax3.set_title('Canceling Interference')
         ax3.set_xlabel('X-axis')
         ax3.set_ylabel('Y-axis')
 
-        red_patch = plt.Line2D([0], [0], color='red', lw=4, label='Positive Interference')
-        blue_patch = plt.Line2D([0], [0], color='blue', lw=4, label='Negative Interference')
-        green_patch = plt.Line2D([0], [0], color='green', lw=4, label='Canceling Interference')
+        red_patch = plt.Line2D([0], [0], color='red',
+                               lw=4, label='Positive Interference')
+        blue_patch = plt.Line2D([0], [0], color='blue',
+                                lw=4, label='Negative Interference')
+        green_patch = plt.Line2D(
+            [0], [0], color='green', lw=4, label='Canceling Interference')
         ax1.legend(handles=[red_patch])
         ax2.legend(handles=[blue_patch])
         ax3.legend(handles=[green_patch])
 
         plt.tight_layout()
 
-        if additoonal_path is not None:
-            plt.savefig(additoonal_path, dpi=300, bbox_inches='tight')
+        if self.plot_path is not None:
+            plt.savefig(self.plot_path[:-4]+"_interf.png",
+                        dpi=300, bbox_inches='tight')
         plt.show()
         
 if __name__ == "__main__":
@@ -634,24 +681,31 @@ if __name__ == "__main__":
 
     ########################### SETUP THE EXPERIMENT ###########################
 
+    experiment_type = "dt_error"
+    t_type = "sin"  # "impulse" or "sin"
+    total_time = 3      # Recomended: 6 sec for impulse, 10 sec for sin
+    NOISE = None      # None, "white", "speckle", "gaussian", "perlin"
     experiment_type = "node"
     t_type = "impulse"  # "impulse" or "sin"
     total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
     NOISE = None      # "white", "speckle", "gaussian", "perlin"
 
-    plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
-    #plot_path = None
+    # Pass None to animate
+    plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png"
+    # plot_path = None
 
+    row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur",
+                             t_type=t_type, total_time=total_time, plot_path=plot_path)
     row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
     disruption_test = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type="sin")
 
     ############################## Experiment 1-6 ##############################
 
     # "2_transducers" Experiment
-    #row_impulse.plot_2_transducers()
+    # row_impulse.plot_2_transducers()
 
     # "row_transducers" Experiment
-    #row_impulse.plot_row_transducers()
+    # row_impulse.plot_row_transducers()
 
     # "var_transducers" Experiment
     #row_impulse.plot_var_transducers()
@@ -671,4 +725,4 @@ if __name__ == "__main__":
     row_impulse.plot_1_noise_transducers()
 
     # "noise_threshold" Experiment
-    #row_impulse.noise_threshold()
+    # row_impulse.noise_threshold()
