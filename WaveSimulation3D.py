@@ -22,6 +22,7 @@ class WaveSimulation3D:
 
         self.ds = ds
         self.dt = dt
+        self.boundary = boundary
 
         self.c = c
 
