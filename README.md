@@ -44,7 +44,7 @@ python main2D.py
 
 ### 3D Wave Simulation
 
-To run a 3D wave simulation, you can use the `main3D.py` (main3D.py) script. The script allows you to specify various simulation parameters and run different types of experiments.
+To run a 3D wave simulation, you can use the [`main3D.py`](main3D.py) script. The script allows you to specify various simulation parameters and run different types of experiments.
 
 Example usage:
 ```sh
