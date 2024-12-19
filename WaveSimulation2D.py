@@ -142,24 +142,8 @@ class WaveSimulation2D:
                 "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin', or None.")
 
         self.u += noise
-
-    def calculate_snr(self, signal, noise_amplitude):
-        """
-        Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
-
-        Parameters:
-            signal (np.ndarray): The wave field or image signal.
-            noise_amplitude (float): Amplitude of the noise added.
-
-        Returns:
-            float: Signal-to-noise ratio (SNR) in decibels.
-        """
-        signal_power = np.mean(signal**2)  # Mean power of the signal
-        noise_power = noise_amplitude**2   # Power of the noise
-        snr = 10 * np.log10(signal_power / noise_power)
-        return snr
     
-    # TODO: "absorbing" and "pml" do not work as expected yet
+
     def step(self, addNoise=False, noise_amplitude=0.001):
         """
         Perform one time step of the simulation.
@@ -398,7 +382,7 @@ class Experiment:
         plot_step = int(time_step / 0.01)  # Ensure plot_step is an integer
 
         # Step manually and plot
-        for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
+        for i in tqdm(range(int(self.total_time / self.sim.dt) + 1)):  # Include the last step
             if self.sim.noise is not None:
                 self.sim.step(addNoise=True, noise_amplitude=0.001)
             else:
@@ -469,6 +453,25 @@ class Experiment:
 
     def plot_1_noise_transducers(self):
         """Plots the wave field and finds the threshold of when noise is too disruptive."""
+
+
+        def calculate_snr( signal, noise_amplitude):
+            """
+            Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
+
+            Parameters:
+                signal (np.ndarray): The wave field or image signal.
+                noise_amplitude (float): Amplitude of the noise added.
+
+            Returns:
+                float: Signal-to-noise ratio (SNR) in decibels.
+            """
+            signal_power = np.mean(signal**2)  # Mean power of the signal
+            noise_power = noise_amplitude**2   # Power of the noise
+            snr = 10 * np.log10(signal_power / noise_power)
+
+            return snr
+        
         noise_levels = np.linspace(0.01, 0.5, 10)  # Define a range of noise amplitudes
         thresholds = []
 
@@ -489,12 +492,14 @@ class Experiment:
                 self.sim.add_source(Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
 
             # Run the simulation
-            for _ in range(100):  # Run for a fixed number of steps
+            print(f"Running simulation with noise amplitude {noise_amplitude}...")
+
+            for _ in tqdm(range(int(self.total_time / self.sim.dt) + 1)):
                 self.sim.step(addNoise=True, noise_amplitude=noise_amplitude)
 
             # Calculate SNR
             signal_field = self.sim.u
-            snr = self.sim.calculate_snr(signal_field, noise_amplitude)
+            snr = calculate_snr(signal_field, noise_amplitude)
 
             # Record the threshold if SNR falls below a critical value (e.g., 1 dB)
             if snr < 1:
@@ -684,13 +689,9 @@ if __name__ == "__main__":
 
     ########################### SETUP THE EXPERIMENT ###########################
 
-    experiment_type = "dt_error"
+    experiment_type = "noise"
     t_type = "sin"  # "impulse" or "sin"
     total_time = 3      # Recomended: 6 sec for impulse, 10 sec for sin
-    NOISE = None      # None, "white", "speckle", "gaussian", "perlin"
-    experiment_type = "node"
-    t_type = "impulse"  # "impulse" or "sin"
-    total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
     NOISE = None      # "white", "speckle", "gaussian", "perlin"
 
     # Pass None to animate
@@ -699,8 +700,6 @@ if __name__ == "__main__":
 
     row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur",
                              t_type=t_type, total_time=total_time, plot_path=plot_path)
-    row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
-    disruption_test = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type="sin")
 
     ############################## Experiment 1-6 ##############################
 
