@@ -133,6 +133,22 @@ class WaveSimulation2D:
         
         self.u += noise
 
+    def calculate_snr(self, signal, noise_amplitude):
+        """
+        Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
+
+        Parameters:
+            signal (np.ndarray): The wave field or image signal.
+            noise_amplitude (float): Amplitude of the noise added.
+
+        Returns:
+            float: Signal-to-noise ratio (SNR) in decibels.
+        """
+        signal_power = np.mean(signal**2)  # Mean power of the signal
+        noise_power = noise_amplitude**2   # Power of the noise
+        snr = 10 * np.log10(signal_power / noise_power)
+        return snr
+    
     # TODO: "absorbing" and "pml" do not work as expected yet
     def step(self, addNoise=False, noise_amplitude=0.001):
         """
@@ -423,24 +439,47 @@ class Experiment:
             self._animate()
     
     def plot_1_noise_transducers(self):
-        '''Plots the wave field for two transducers in a random central location.'''
-        '''Assess how one noise source affects the wave field.'''
+        """Plots the wave field and finds the threshold of when noise is too disruptive."""
+        noise_levels = np.linspace(0.001, 0.1, 10)  # Define a range of noise amplitudes
+        thresholds = []
 
-        # Add the selecred sources to the simulation
-        if self.t_type == "impulse":
-            self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-            self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
-            self.sim.add_source(Sources.create_impulse_source_2D(500, 2, 4, 0.02))
-        elif self.t_type == "sin":
-            # amplitude, frequency, x0, y0, z0
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
-            self.sim.add_source(Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
+        for noise_amplitude in noise_levels:
+            # Reset the simulation
+            self.sim.u.fill(0)
+            self.sim.u_prev.fill(0)
+            self.sim.u_next.fill(0)
 
-        if self.plot_path is not None:
-            self._plot()
+            # Add sources
+            if self.t_type == "impulse":
+                self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+                self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+                self.sim.add_source(Sources.create_impulse_source_2D(500, 2, 4, 0.02))
+            elif self.t_type == "sin":
+                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+                self.sim.add_source(Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
+
+            # Run the simulation
+            for _ in range(100):  # Run for a fixed number of steps
+                self.sim.step(addNoise=True, noise_amplitude=noise_amplitude)
+
+            # Calculate SNR
+            signal_field = self.sim.u
+            snr = self.sim.calculate_snr(signal_field, noise_amplitude)
+
+            # Record the threshold if SNR falls below a critical value (e.g., 1 dB)
+            if snr < 1:
+                thresholds.append((noise_amplitude, snr))
+                break  # Stop once threshold is found
+
+        if thresholds:
+            print(f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.2f} dB.")
         else:
-            self._animate()
+            print("No disruptive noise threshold found in the tested range.")
+
+        # Optionally, plot the final wave field for the threshold case
+        if thresholds:
+            self.sim.plot()
 
     def pml_test(self):
         '''Plots the pml profile and wave field for two transducers in a random central location with PML boundary.'''
@@ -498,7 +537,7 @@ class Experiment:
 
                 # Plot at 2 seconds
                 im = new_env.plot(ax=axes[idx])
-                axes[idx].set_title(f"Simulation step: {param_name} = {param:.2f}")
+                axes[idx].set_title(f"Simulation step: {param_name} = {param:.4f}")
 
                 del new_env
             return im
@@ -513,7 +552,7 @@ class Experiment:
             param_values = np.linspace(0.01, 0.7, 6)
             im = run_simulation_and_plot("ds", param_values, axes)
         elif test_subject == "noise":
-            param_values = np.linspace(0.0, 0.01, 6)
+            param_values = np.linspace(0.0, 10, 6)
             im = run_simulation_and_plot("noise", param_values, axes)
 
         fig.colorbar(im, ax=axes, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
@@ -574,47 +613,7 @@ class Experiment:
         if additoonal_path is not None:
             plt.savefig(additoonal_path, dpi=300, bbox_inches='tight')
         plt.show()
-    
-    def calculate_snr(self, signal, noise_amplitude):
-        """
-        Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
-
-        Parameters:
-            signal (np.ndarray): The wave field or image signal.
-            noise_amplitude (float): Amplitude of the noise added.
-
-        Returns:
-            float: Signal-to-noise ratio (SNR) in decibels.
-        """
-        signal_power = np.mean(signal**2)  # Mean power of the signal
-        noise_power = noise_amplitude**2   # Power of the noise
-        snr = 10 * np.log10(signal_power / noise_power)
-        return snr
         
-    def noise_threshold(self):
-        noise_amplitudes = np.linspace(0.0, 0.01, 20)  # Noise amplitudes to test
-        threshold_reached = False
-
-        for noise_amp in noise_amplitudes:
-            self.sim.step(addNoise=True, noise_amplitude=noise_amp)
-            snr = self.calculate_snr(self.sim.u, noise_amp)
-            
-            # Plot the noisy wave field
-            plt.imshow(self.sim.u, cmap="viridis", origin="lower")
-            plt.title(f"Noise Amplitude: {noise_amp:.2f}, SNR: {snr:.2f} dB")
-            plt.colorbar(label="Amplitude")
-            plt.show()
-
-            # Visual detection check
-            user_input = input("Is the image still detectable? (yes/no): ").strip().lower()
-            if user_input == "no":
-                print(f"Threshold reached at Noise Amplitude: {noise_amp:.2f}, SNR: {snr:.2f} dB")
-                threshold_reached = True
-                break
-
-        if not threshold_reached:
-            print("Image remains detectable for all noise levels tested.")
-
 if __name__ == "__main__":
     # General usage:
     # 1. Specify simulation parameters
@@ -638,12 +637,13 @@ if __name__ == "__main__":
     experiment_type = "node"
     t_type = "impulse"  # "impulse" or "sin"
     total_time = 15      # Recomended: 6 sec for impulse, 10 sec for sin
-    NOISE = "white"      # "white", "speckle", "gaussian", "perlin"
+    NOISE = None      # "white", "speckle", "gaussian", "perlin"
 
     plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
     #plot_path = None
 
     row_impulse = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
+    disruption_test = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type="sin")
 
     ############################## Experiment 1-6 ##############################
 
@@ -654,7 +654,7 @@ if __name__ == "__main__":
     #row_impulse.plot_row_transducers()
 
     # "var_transducers" Experiment
-    # row_impulse.plot_var_transducers()
+    #row_impulse.plot_var_transducers()
 
     # "pml_test" Experiment
     # row_impulse.pml_test()
@@ -664,11 +664,11 @@ if __name__ == "__main__":
     # row_impulse.plot_interference(additoonal_path=additiona_path)
 
     # "error_test" Experiment
-    test_subject = "noise"  # "ds", "dt", or "noise"
-    row_impulse.error_test(test_subject)
+    #test_subject = "noise"  # "ds", "dt", or "noise"
+    #row_impulse.error_test(test_subject)
 
     # "1_noise_transducers" Experiment
-    #row_impulse.plot_1_noise_transducers()
+    row_impulse.plot_1_noise_transducers()
 
     # "noise_threshold" Experiment
     #row_impulse.noise_threshold()
