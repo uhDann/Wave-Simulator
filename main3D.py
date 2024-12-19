@@ -22,12 +22,11 @@ c = 1.0
 experiment_type = "combined"  # "dt_error", "ds_error"
 t_type = "both"  # "impulse" or "sin" or "both"
 total_time = 0.5      # Recommended: 6 sec for impulse, 10 sec for sin
-NOISE = None     # "white", "speckle", "gaussian", "perlin"
 
 plot_path = f"MSFigures/3D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
 #plot_path = None
 
-experiment = Experiment(grid_size, ds, dt, NOISE, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
+experiment = Experiment(grid_size, ds, dt, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
 
 ############################## Experiment ##############################
 

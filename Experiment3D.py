@@ -7,7 +7,7 @@ from WaveSimulation3D import WaveSimulation3D
 import Sources
 
 class Experiment:
-    def __init__(self, grid_size, ds, dt, noise, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
+    def __init__(self, grid_size, ds, dt, c, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
         '''
         Initialize the experiment with the simulation parameters and plot parameters.
         
@@ -18,8 +18,6 @@ class Experiment:
                 Spatial step size.
             dt: float
                 Time step size.
-            noise: str
-                Type of noise to add. Options are 'white', 'speckle', 'gaussian', 'perlin'.
             c: float
                 Speed of sound in the medium.
             boundary: str
@@ -100,10 +98,8 @@ class Experiment:
                     axes.append(fig.add_subplot(spec[row, col]))
 
         for i in tqdm(range(int(self.total_time / 0.01) + 1)):  # Include the last step
-            if self.sim.noise is not None:
-                self.sim.step(addNoise=True, noise_amplitude=0.001)
-            else:
-                self.sim.step()
+            
+            self.sim.step()
 
             if i >= self.start_time and i % plot_step == 0:
                 subplot_index = i // plot_step
@@ -166,68 +162,3 @@ class Experiment:
             self._plot(z_slice=self.grid_size[2] // 4, point1=point1[:-1], point2=point2[:-1])
         else:
             self._animate()
-    
-    # BE AWARE: This method is not tested yet - Delete it if not needed for Noise stuff
-    def error_test(self, test_subject):
-        '''Plots the wave field for different values of the error parameter (dt or ds).
-        
-        Parameters:
-            test_subject: str'''
-
-        def run_simulation_and_plot(param_name, param_values, ax):
-            '''Internal method to run the simulation for different values of the error parameter and plot the results.
-            
-            Parameters:
-                param_name: str
-                    Name of the error parameter.
-                param_values: array-like
-                    Values of the error parameter to test.
-                ax: matplotlib.axes.Axes
-                    Axes to plot the results.
-        
-            Returns:
-                im: matplotlib.image.AxesImage
-                    Image object for the colorbar.
-            '''
-            for param in param_values:
-                print(f"Running for {param_name} = {param}")
-
-                if param_name == "dt":
-                    new_env = WaveSimulation3D(self.grid_size, self.sim.ds, param, self.sim.c, boundary=self.sim.boundary)
-                elif param_name == "ds":
-                    new_env = WaveSimulation3D(self.grid_size, param, self.sim.dt, self.sim.c, boundary=self.sim.boundary)
-
-                if self.t_type == "impulse":
-                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 4, 4, 0.01, 0.02))
-                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 6, 6, 0.01, 0.02))
-                elif self.t_type == "sin":
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 4, 4, 0))
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 6, 6, 0))
-                elif self.t_type == "both":
-                    new_env.add_source(Sources.create_impulse_source_3D(10e39, 4, 4, 0.01, 0.02))
-                    new_env.add_source(Sources.create_sinusoidal_source_3D(50, 1, 2, 2, 0))
-
-                # Run the simulation up to 3 seconds
-                for _ in tqdm(range(int(3 / new_env.dt))):
-                    new_env.step()
-
-                # Plot at 2 seconds
-                im = new_env.plot(ax=ax, z_slice=10)
-                ax.set_title(f"Simulation step: {param_name} = {param:.3f}")
-
-                del new_env
-            return im
-        
-        fig, ax = plt.subplots(figsize=(10, 8), constrained_layout=True)
-
-        if test_subject == "dt":
-            param_values = np.linspace(0.01, 1, 6)
-            im = run_simulation_and_plot("dt", param_values, ax)
-        elif test_subject == "ds":
-            param_values = np.linspace(0.01, 0.7, 6)
-            im = run_simulation_and_plot("ds", param_values, ax)
-
-        fig.colorbar(im, ax=ax, orientation='vertical', fraction=0.05, pad=0.02).set_label('Wave Amplitude')
-        if self.plot_path is not None:
-            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
-        plt.show()

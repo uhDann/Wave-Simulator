@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 class WaveSimulation3D:
-    def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
+    def __init__(self, grid_size, ds, dt, c, boundary="mur", stability_check=True):
         """
         Initialize the simulation.
 
@@ -25,15 +25,6 @@ class WaveSimulation3D:
 
         self.c = c
 
-        # Initiatie the PML damping profile and boundary conditions
-        self.boundary = boundary
-        self.pml_width = pml_width
-        self.noise = noise
-
-        # Damping coefficient σ(x, y)
-        self.sigma = np.zeros((self.nx, self.ny, self.nz))
-        self._initialize_pml()
-
         # Wave function at t
         # u[y_i, x_i, z_i]
         self.u = np.zeros((self.nx, self.ny, self.nz))
@@ -53,35 +44,6 @@ class WaveSimulation3D:
             if self.stability_limit > (1 / 3):
                 raise ValueError(
                     "Stability condition violated. Reduce dt or increase ds.")
-
-    def _initialize_pml(self):
-        """Define the PML damping profile."""
-        # TODO: Is this correct indexing?
-        # Initialize sigma_x, sigma_y, and sigma_z to handle damping separately along axes
-        sigma_x = np.zeros((self.nx, 1, 1))  # Along x-axis
-        sigma_y = np.zeros((1, self.ny, 1))  # Along y-axis
-        sigma_z = np.zeros((1, 1, self.nz))  # Along z-axis
-
-        # Quadratic damping profile for x-direction
-        for i in range(self.nx):
-            dx = min(i, self.nx - 1 - i) / self.pml_width
-            if dx < 1.0:
-                sigma_x[i, 0, 0] = (1 - dx) ** 2
-
-        # Quadratic damping profile for y-direction
-        for j in range(self.ny):
-            dy = min(j, self.ny - 1 - j) / self.pml_width
-            if dy < 1.0:
-                sigma_y[0, j, 0] = (1 - dy) ** 2
-
-        # Quadratic damping profile for z-direction
-        for k in range(self.nz):
-            dz = min(k, self.nz - 1 - k) / self.pml_width
-            if dz < 1.0:
-                sigma_z[0, 0, k] = (1 - dz) ** 2
-
-        # Combine damping profiles: Sum or take max for uniform edge damping
-        self.sigma = sigma_x + sigma_y + sigma_z  # Uniform damping near edges
 
     def add_source(self, source_function):
         """
@@ -149,22 +111,6 @@ class WaveSimulation3D:
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
         self.time += self.dt
 
-    def plot_pml_profile(self, z_slice):
-        """
-        Plot the PML damping profile.
-        Parameters:
-        z_slice: int
-            Index of the grid to plot a slice at.
-        """
-        plt.figure()
-        plt.imshow(self.sigma, extent=(0, self.nx * self.ds, 0,
-                   self.ny * self.ds), cmap='viridis', origin='lower')
-        plt.colorbar(label="Damping Coefficient")
-        plt.title("PML Damping Profile")
-        plt.xlabel("x")
-        plt.ylabel("y")
-        plt.savefig("MSFigures/2D/pml_profile.png")
-        plt.show()
 
     def plot(self, z_slice=None, point1=None, point2=None, ax=None, vmin=-1.0, vmax=1.0):
         """
