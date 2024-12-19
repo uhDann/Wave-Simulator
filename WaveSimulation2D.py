@@ -1,3 +1,4 @@
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from noise import pnoise2
@@ -138,7 +139,6 @@ class WaveSimulation2D:
                 "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin', or None.")
 
         self.u += noise
-    
 
     def step(self, addNoise=False, noise_amplitude=0.001):
         """
@@ -193,6 +193,18 @@ class WaveSimulation2D:
         # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
         self.time += self.dt
+
+    def rescale_pressure_field(self, new_shape):
+        """
+        Rescale the pressure field to a new shape.
+        Parameters:
+        new_shape: Tuple (nx, ny)
+            New shape of the pressure field.
+        Returns:
+        rescaled_u: np.ndarray
+            Rescaled pressure field.
+        """
+        return cv2.resize(self.u, new_shape, interpolation=cv2.INTER_NEAREST)
 
     def plot_pml_profile(self):
         """Plot the PML damping profile."""
@@ -291,4 +303,3 @@ class WaveSimulation2D:
 
         plt.ioff()
         plt.show()
-
