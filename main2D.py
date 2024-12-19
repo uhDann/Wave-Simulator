@@ -25,10 +25,11 @@ c = 1.0
 
 experiment_type = "combined"        # Specify the experiment type
 t_type = "sin"                      # "impulse" or "sin" or "both"
-total_time = 6                      # Recommended: 6 sec 
-Noise = None                        # "white", "speckle", "gaussian", "perlin"
+total_time = 6                      # Recommended: 6 sec
+Noise = None                        # None, "white", "speckle", "gaussian", "perlin"
 
-plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png"     # Pass None to animate
+# Pass None to animate
+plot_path = f"MSFigures/2D/WS_{experiment_type}_{t_type}_{total_time}s.png"
 # plot_path = None
 
 experiment = Experiment(grid_size, ds, dt, c, noise=Noise, boundary="mur",
@@ -53,7 +54,7 @@ experiment.plot_row_transducers()
 # experiment.plot_interference(additoonal_path=additiona_path)
 
 # "error_test" Experiment
-# test_subject = "noise"  # "ds", "dt", or "noise"
+# test_subject = "noise"  # "ds", "dt"
 # experiment.error_test(test_subject)
 
 # "1_noise_transducers" Experiment

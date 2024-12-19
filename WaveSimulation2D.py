@@ -32,6 +32,10 @@ class WaveSimulation2D:
 
         self.ds = ds
         self.dt = dt
+
+        if noise not in [None, "white", "speckle", "gaussian", "perlin"]:
+            raise ValueError(
+                "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin', or None.")
         self.noise = noise
 
         self.c = c
@@ -194,17 +198,17 @@ class WaveSimulation2D:
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
         self.time += self.dt
 
-    def rescale_pressure_field(self, new_shape):
+    def rescale_pressure_field(self, new_grid):
         """
         Rescale the pressure field to a new shape.
         Parameters:
-        new_shape: Tuple (nx, ny)
-            New shape of the pressure field.
+        new_grid: Tuple (nx, ny)
+            New shape of the pressure field grid.
         Returns:
         rescaled_u: np.ndarray
             Rescaled pressure field.
         """
-        return cv2.resize(self.u, new_shape, interpolation=cv2.INTER_NEAREST)
+        return cv2.resize(self.u, new_grid, interpolation=cv2.INTER_NEAREST)
 
     def plot_pml_profile(self):
         """Plot the PML damping profile."""
