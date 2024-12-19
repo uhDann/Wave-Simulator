@@ -15,7 +15,6 @@ The Wave Simulator project aims to develop a comprehensive model for simulating 
   - 2D Wave Simulation
   - 3D Wave Simulation
 - Experiments
-- Contributing
 - License
 
 ## Installation
