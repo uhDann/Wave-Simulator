@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import numpy as np
+from tqdm import tqdm
 
 import Sources
 from WaveSimulation2D import WaveSimulation2D
+
 
 class Experiment:
     def __init__(self, grid_size, ds, dt, c, noise=None, boundary="mur", t_type="sin", rows=2, cols=3, start_time=0, total_time=10, plot_path=None):
@@ -59,6 +60,7 @@ class Experiment:
             grid_size, ds, dt, c, noise, boundary=boundary)
 
         # Save the experiment parameters
+        self.nx, self.ny = grid_size
         self.grid_size = grid_size
         self.rows = rows
         self.cols = cols
@@ -74,7 +76,8 @@ class Experiment:
 
     def _animate(self):
         '''Internal method to animate the simulation.'''
-        self.sim.run_simulation(steps=int(self.total_time / 0.01) + 1, vmin=-1, vmax=1, plot_interval=1)
+        self.sim.run_simulation(
+            steps=int(self.total_time / 0.01) + 1, vmin=-1, vmax=1, plot_interval=1)
 
     def _plot(self):
         '''Internal method to plot the simulation.'''
@@ -162,7 +165,7 @@ class Experiment:
     def plot_1_noise_transducers(self):
         """Plots the wave field and finds the threshold of when noise is too disruptive."""
 
-        def calculate_snr( signal, noise_amplitude):
+        def calculate_snr(signal, noise_amplitude):
             """
             Calculate the Signal-to-Noise Ratio (SNR) for a given signal and noise level.
 
@@ -178,8 +181,9 @@ class Experiment:
             snr = 10 * np.log10(signal_power / noise_power)
 
             return snr
-        
-        noise_levels = np.linspace(0.01, 0.5, 10)  # Define a range of noise amplitudes
+
+        # Define a range of noise amplitudes
+        noise_levels = np.linspace(0.01, 0.5, 10)
         thresholds = []
 
         for noise_amplitude in noise_levels:
@@ -190,16 +194,23 @@ class Experiment:
 
             # Add sources
             if self.t_type == "impulse":
-                self.sim.add_source(Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-                self.sim.add_source(Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
-                self.sim.add_source(Sources.create_impulse_source_2D(500, 2, 4, 0.02))
+                self.sim.add_source(
+                    Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
+                self.sim.add_source(
+                    Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
+                self.sim.add_source(
+                    Sources.create_impulse_source_2D(500, 2, 4, 0.02))
             elif self.t_type == "sin":
-                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
-                self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
-                self.sim.add_source(Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
+                self.sim.add_source(
+                    Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
+                self.sim.add_source(
+                    Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
+                self.sim.add_source(
+                    Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
 
             # Run the simulation
-            print(f"Running simulation with noise amplitude {noise_amplitude}...")
+            print(
+                f"Running simulation with noise amplitude {noise_amplitude}...")
 
             for _ in tqdm(range(int(self.total_time / self.sim.dt) + 1)):
                 self.sim.step(addNoise=True, noise_amplitude=noise_amplitude)
@@ -214,7 +225,8 @@ class Experiment:
                 break  # Stop once threshold is found
 
         if thresholds:
-            print(f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.4f} dB.")
+            print(
+                f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.4f} dB.")
         else:
             print("No disruptive noise threshold found in the tested range.")
 
@@ -237,7 +249,7 @@ class Experiment:
         Parameters:
             test_subject: str'''
 
-        def run_simulation_and_plot(param_name, param_values, axes):
+        def run_simulation_and_plot(param_name, param_values, axes_pressure_field, axes_difference):
             '''Internal method to run the simulation for different values of the error parameter and plot the results.
 
             Parameters:
@@ -245,13 +257,17 @@ class Experiment:
                     Name of the error parameter.
                 param_values: array-like
                     Values of the error parameter to test.
-                axes: array-like
-                    Array of axes to plot the results.
+                axes_pressure_field: array-like
+                    Array of axes to plot the pressure_field results.
+                axes_difference: array-like
+                    Array of axes to plot the difference results.
 
             Returns:
                 im: matplotlib.image.AxesImage
                     Image object for the colorbar.
             '''
+            benchmark_pressure_field = None
+            assert param_values.any()
             for idx, param in enumerate(param_values):
                 print(f"Running for {param_name} = {param}")
 
@@ -263,9 +279,9 @@ class Experiment:
                         int(self.grid_size[0] * (self.sim.ds / param)), int(self.grid_size[1] * (self.sim.ds / param)))
                     new_env = WaveSimulation2D(new_grid, param, self.sim.dt, self.sim.c,
                                                self.sim.noise, boundary=self.sim.boundary, stability_check=False)
-                elif param_name == "noise":
-                    new_env = WaveSimulation2D(self.grid_size, self.sim.ds, self.sim.dt, self.sim.c,
-                                               self.sim.noise, boundary=self.sim.boundary, stability_check=False)
+                else:
+                    raise ValueError(
+                        "Invalid test subject. Use 'dt' or 'ds'.")
 
                 if self.t_type == "impulse":
                     new_env.add_source(
@@ -287,31 +303,63 @@ class Experiment:
                 for _ in tqdm(range(int(3 / new_env.dt))):
                     new_env.step()
 
-                # Plot at 2 seconds
-                im = new_env.plot(ax=axes[idx])
-                axes[idx].set_title(f"Simulation step: {param_name} = {param:.4f}")
+                # Plot at 3 seconds
+                im_pressure_field = new_env.plot(ax=axes_pressure_field[idx])
+                axes_pressure_field[idx].set_title(
+                    f"Simulation step: {param_name} = {param:.4f}")
+
+                if idx == 0:
+                    benchmark_pressure_field = new_env.u.copy()
+                    im_difference = new_env.plot(ax=axes_difference[idx])
+                    axes_difference[idx].set_title(
+                        f"Benchmark pressure field\n{param_name} = {param:.4f}")
+                else:
+                    if param_name == "ds":
+                        new_env.u = new_env.rescale_pressure_field(
+                            (self.nx, self.ny))
+                        new_env.nx = self.nx
+                        new_env.ny = self.ny
+
+                    assert benchmark_pressure_field is not None
+                    new_env.u = np.abs(new_env.u - benchmark_pressure_field)
+
+                    im_difference = new_env.plot(ax=axes_difference[idx])
+                    axes_difference[idx].set_title(
+                        f"Absolute difference from benchmark\n{param_name} = {param:.4f}")
 
                 del new_env
-            return im
+            return im_pressure_field, im_difference
 
-        fig, axes = plt.subplots(2, 3, figsize=(
+        fig_pressure_field, axes_pressure_field = plt.subplots(2, 3, figsize=(
             20, 8), constrained_layout=True)
-        axes = axes.flatten()
+
+        fig_difference, axes_difference = plt.subplots(
+            2, 3, figsize=(20, 8), constrained_layout=True)
+
+        axes_pressure_field = axes_pressure_field.flatten()
+        axes_difference = axes_difference.flatten()
 
         if test_subject == "dt":
             param_values = np.linspace(self.sim.dt, 0.1, 6)
-            im = run_simulation_and_plot("dt", param_values, axes)
+            im_pressure_field, im_difference = run_simulation_and_plot(
+                "dt", param_values, axes_pressure_field, axes_difference)
         elif test_subject == "ds":
             param_values = np.linspace(self.sim.ds, 0.5, 6)
-            im = run_simulation_and_plot("ds", param_values, axes)
-        elif test_subject == "noise":
-            param_values = np.linspace(0.0, 10, 6)
-            im = run_simulation_and_plot("noise", param_values, axes)
+            im_pressure_field, im_difference = run_simulation_and_plot(
+                "ds", param_values, axes_pressure_field, axes_difference)
+        else:
+            raise ValueError(
+                "Invalid test subject. Use 'dt' or 'ds'.")
 
-        fig.colorbar(im, ax=axes, orientation='vertical',
-                     fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+        fig_pressure_field.colorbar(im_pressure_field, ax=axes_pressure_field, orientation='vertical',
+                                    fraction=0.05, pad=0.02).set_label('Wave Amplitude')
+
+        fig_difference.colorbar(im_difference, ax=axes_difference, orientation='vertical',
+                                fraction=0.05, pad=0.02).set_label('Benchmark Difference')
+
         if self.plot_path is not None:
-            plt.savefig(self.plot_path, dpi=300, bbox_inches='tight')
+            fig_pressure_field.savefig(
+                self.plot_path, dpi=300, bbox_inches='tight')
         plt.show()
 
     def plot_interference(self, additoonal_path=None):
@@ -375,3 +423,4 @@ class Experiment:
             plt.savefig(self.plot_path[:-4]+"_interf.png",
                         dpi=300, bbox_inches='tight')
         plt.show()
+
