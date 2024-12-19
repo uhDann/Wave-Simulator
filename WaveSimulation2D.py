@@ -5,6 +5,7 @@ from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
 import Sources
+NOISE = "gaussian"
 
 class WaveSimulation2D:
     def __init__(self, grid_size, ds, dt, c, noise=None, pml_width=10, boundary="pml", stability_check=True):
@@ -134,9 +135,11 @@ class WaveSimulation2D:
         elif noise_type == "perlin":
             noise = self.perlin_noise(
                 self.u.shape, scale=20.0, amplitude=amplitude)
+        elif noise_type == None:
+            noise = np.zeros(self.u.shape)
         else:
             raise ValueError(
-                "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin'.")
+                "Invalid noise type. Use 'white', 'speckle', 'gaussian', 'perlin', or None.")
 
         self.u += noise
 
@@ -466,7 +469,7 @@ class Experiment:
 
     def plot_1_noise_transducers(self):
         """Plots the wave field and finds the threshold of when noise is too disruptive."""
-        noise_levels = np.linspace(0.001, 0.1, 10)  # Define a range of noise amplitudes
+        noise_levels = np.linspace(0.01, 0.5, 10)  # Define a range of noise amplitudes
         thresholds = []
 
         for noise_amplitude in noise_levels:
@@ -499,7 +502,7 @@ class Experiment:
                 break  # Stop once threshold is found
 
         if thresholds:
-            print(f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.2f} dB.")
+            print(f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.4f} dB.")
         else:
             print("No disruptive noise threshold found in the tested range.")
 
