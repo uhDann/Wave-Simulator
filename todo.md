@@ -15,18 +15,18 @@ Misha:
 
 Charlene:
 \
-- Finish up the Noise bit
+- Finish up the Noise bit √
 - Do the Intro bits below
   - Check that we cover: Why is the model of the system you are developing needed/significant (what problems does it solve)?
-  - We need at least 5 references, they have to talk about the existing approaches to modelling our system or phenomenon, maybe we need to add sources to Misha’s Theoretical bit.
- - Maybe a couple references for modelling source modelling, i.e. Gaussian packet for Dirac delta function.
+  - We need at least 5 references, they have to talk about the existing approaches to modelling our system or phenomenon, maybe we need to add sources to Misha’s Theoretical bit. √
+ - Maybe a couple references for modelling source modelling, i.e. Gaussian packet for Dirac delta function. √
 - Check Results/Intro
-  - Please make sure this links to the objectives and case studies outlined in Section 1
+  - Please make sure this links to the objectives and case studies outlined in Section 1 √
     - I think rather we need to explain in the introduction how what we are doing is relevant to the objectives and case studies.
 - Theoretical background
-  - Maybe add a block diagram or something more schematical.
+  - Maybe add a block diagram or something more schematical. √
       Misha's suggestion: Maybe a general diagram where we have like a simulation object and we have a bunch of sources and they all feed into the object and the output is a pressure field in 2D/3D. It will look very cool.
-- Discussion and Conclusions
+- Discussion and Conclusions √
 
 
 Danila 

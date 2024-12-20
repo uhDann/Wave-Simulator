@@ -41,7 +41,7 @@ experiment = Experiment(grid_size, ds, dt, c, noise=Noise, boundary="mur",
 # experiment.plot_2_transducers()
 
 # "row_transducers" Experiment
-experiment.plot_row_transducers()
+#experiment.plot_row_transducers()
 
 # "var_transducers" Experiment
 # experiment.plot_var_transducers()
@@ -58,7 +58,7 @@ experiment.plot_row_transducers()
 # experiment.error_test(test_subject)
 
 # "1_noise_transducers" Experiment
-# experiment.plot_1_noise_transducers()
+experiment.plot_1_noise_transducers()
 
 # "noise_threshold" Experiment
 # experiment.noise_threshold()
