@@ -1,11 +1,15 @@
 from Experiment3D import Experiment
 
-# General usage:
-# 1. Specify simulation parameters
-# 2. Create a simulation object
-# 3. Add sources to the simulation, there are some define in Sources.py
-# 4. Either manually step the simulation or run with animated plotting
-# 5. Alternatively, run the simulation for the desired experiment
+'''
+General usage:
+
+1. Specify simulation parameters
+2. Specify the experiment type
+3. Create the experiment object
+4. Pass the path to save the plot or pass None to animate
+5. Run the desired experiment
+
+'''
 
 ##################### SETUP THE ENVIRONMENT PARAMETERS #####################
 # Dimensions of grid
@@ -19,16 +23,21 @@ c = 1.0
 
 ########################### SETUP THE EXPERIMENT ###########################
 
-experiment_type = "combined"  # "dt_error", "ds_error"
-t_type = "both"  # "impulse" or "sin" or "both"
-total_time = 0.5      # Recommended: 6 sec for impulse, 10 sec for sin
+experiment_type = "combined"        # Specify the experiment type
+t_type = "sin"                      # "impulse" or "sin" or "both"
+total_time = 6                      # Recommended: 3 sec for impulse, 5 sec for sin
 
 plot_path = f"MSFigures/3D/WS_{experiment_type}_{t_type}_{total_time}s.png" # Pass None to animate
 #plot_path = None
 
-experiment = Experiment(grid_size, ds, dt, c, boundary="mur", t_type=t_type, total_time=total_time, plot_path=plot_path)
+experiment = Experiment(grid_size, ds, dt, c, boundary="mur", 
+                        t_type=t_type, total_time=total_time, plot_path=plot_path)
 
 ############################## Experiment ##############################
 
 # "2_transducers" Experiment
 experiment.plot_2_transducers()
+
+# "grid_transducers" Experiment
+# "both" is not specified
+# experiment.plot_grid_transducers()

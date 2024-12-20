@@ -17,6 +17,8 @@ class WaveSimulation3D:
             Speed of sound in the medium.
         boundary: str
             Boundary condition type ("reflective" or "absorbing").
+        stability_check: bool
+            True to enable the stability condition check.
         """
         self.nx, self.ny, self.nz = grid_size
 
@@ -36,7 +38,6 @@ class WaveSimulation3D:
 
         # List of source functions
         self.sources = []
-
         self.time = 0
 
         # Stability condition (Courant condition)
@@ -108,7 +109,7 @@ class WaveSimulation3D:
                         self.u_next[i, j, 0] = self.u[i, j, 1] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, j, 1] - self.u[i, j, 0])
                         self.u_next[i, j, -1] = self.u[i, j, -2] + (c * dt - ds) / (c * dt + ds) * (self.u_next[i, j, -2] - self.u[i, j, -1])
 
-            # Update time step
+        # Update time step
         self.u_prev, self.u, self.u_next = self.u, self.u_next, self.u_prev
         self.time += self.dt
 

@@ -124,6 +124,7 @@ class Experiment:
 
         point1 = [4, 4, 0]
         point2 = [2, 2, 0]
+
         # Add the selected sources to the simulation
         if self.t_type == "impulse":
             self.sim.add_source(Sources.create_impulse_source_3D(10e39, point1[0], point1[1], point1[2]+0.01, 0.02))
@@ -143,9 +144,12 @@ class Experiment:
     def plot_grid_transducers(self):
         '''Plots the wave field for a grid of chosen transducers.'''
 
+        if self.t_type == "both":
+            raise ValueError("Cannot use 'both' source type for this experiment.")
+        
         point1 = [4, 4, 0]
         point2 = [2, 2, 0]
-
+        
         # Add the selected sources to the simulation
         if self.t_type == "impulse":
             for i in range(1, 5):
