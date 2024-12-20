@@ -14,7 +14,7 @@ Misha:
 - Describe the process of implementing the model and running the simulations. √
 
 Charlene:
-
+\
 - Finish up the Noise bit
 - Do the Intro bits below
   - Check that we cover: Why is the model of the system you are developing needed/significant (what problems does it solve)?
@@ -34,7 +34,6 @@ Danila
 - Finish up analysis of the E2 and E3 √
 - Talk about the specific objectives, maybe incorporate our roadmap/plan √
 - Theoretical Background:
-  - Check that we hit all of the relevant mathematical topics
-- Maybe do a bit discussion and concluisions
-- Clean up the code + check -> Make sure its in the submisson stage
-- Generate the UML Diagrams 
+  - Check that we hit all of the relevant mathematical topics √
+- Clean up the code + check -> Make sure its in the submisson stage √
+- Generate the UML Diagrams √
