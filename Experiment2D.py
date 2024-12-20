@@ -163,7 +163,7 @@ class Experiment:
             self._animate()
 
     def plot_1_noise_transducers(self):
-        """Plots the wave field and finds the threshold of when noise is too disruptive."""
+        """Plots the wave field and finds the threshold of when the third sinusoidal source becomes too disruptive."""
 
         def calculate_snr(signal, noise_amplitude):
             """
@@ -171,19 +171,19 @@ class Experiment:
 
             Parameters:
                 signal (np.ndarray): The wave field or image signal.
-                noise_amplitude (float): Amplitude of the noise added.
+                noise_amplitude (float): Amplitude of the added third sinusoidal source.
 
             Returns:
                 float: Signal-to-noise ratio (SNR) in decibels.
             """
             signal_power = np.mean(signal**2)  # Mean power of the signal
-            noise_power = noise_amplitude**2   # Power of the noise
+            noise_power = noise_amplitude**2  # Power of the noise (third source amplitude)
             snr = 10 * np.log10(signal_power / noise_power)
 
             return snr
 
-        # Define a range of noise amplitudes
-        noise_levels = np.linspace(0.01, 0.5, 10)
+        noise_levels = np.linspace(0, 1, 10)  # Range of amplitudes for the third sinusoidal source
+        snr_values = []  # Store SNR values for graphing
         thresholds = []
 
         for noise_amplitude in noise_levels:
@@ -192,47 +192,44 @@ class Experiment:
             self.sim.u_prev.fill(0)
             self.sim.u_next.fill(0)
 
-            # Add sources
-            if self.t_type == "impulse":
-                self.sim.add_source(
-                    Sources.create_impulse_source_2D(10000, 4, 4, 0.02))
-                self.sim.add_source(
-                    Sources.create_impulse_source_2D(10000, 6, 6, 0.02))
-                self.sim.add_source(
-                    Sources.create_impulse_source_2D(500, 2, 4, 0.02))
-            elif self.t_type == "sin":
-                self.sim.add_source(
-                    Sources.create_sinusoidal_source_2D(10, 1, 4, 4))
-                self.sim.add_source(
-                    Sources.create_sinusoidal_source_2D(10, 1, 6, 6))
-                self.sim.add_source(
-                    Sources.create_sinusoidal_source_2D(3, 1, 2, 4))
+            # Add the two fixed sinusoidal sources
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 4, 4))  # Source 1
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))  # Source 2
+
+            # Add the third sinusoidal source with dynamic amplitude
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(noise_amplitude, 1, 2, 4))  # Third source
 
             # Run the simulation
-            print(
-                f"Running simulation with noise amplitude {noise_amplitude}...")
+            print(f"Running simulation with third source amplitude {noise_amplitude}...")
 
             for _ in tqdm(range(int(self.total_time / self.sim.dt) + 1)):
-                self.sim.step(addNoise=True, noise_amplitude=noise_amplitude)
+                self.sim.step(addNoise=False)
 
             # Calculate SNR
             signal_field = self.sim.u
             snr = calculate_snr(signal_field, noise_amplitude)
+            snr_values.append((noise_amplitude, snr))  # Record for plotting
+            print(f"SNR: {snr:.4f} dB")
 
             # Record the threshold if SNR falls below a critical value (e.g., 1 dB)
             if snr < 1:
                 thresholds.append((noise_amplitude, snr))
-                break  # Stop once threshold is found
 
+        # Plot the SNR vs. third source amplitude graph
+        noise_amplitudes, snrs = zip(*snr_values)
+        plt.figure(figsize=(10, 6))
+        plt.plot(noise_amplitudes, snrs, marker='o', label='SNR vs. Third Source Amplitude')
+        plt.axhline(y=1, color='r', linestyle='--', label='SNR Threshold (1 dB)')
+        plt.title("SNR vs. Third Impulse Source Amplitude")
+        plt.xlabel("Third Source Amplitude")
+        plt.ylabel("SNR (dB)")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
         if thresholds:
-            print(
-                f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.4f} dB.")
+            print(f"Noise threshold found at amplitude {thresholds[0][0]} with SNR {thresholds[0][1]:.4f} dB.")
         else:
             print("No disruptive noise threshold found in the tested range.")
-
-        # Optionally, plot the final wave field for the threshold case
-        if thresholds:
-            self.sim.plot()
 
     def pml_test(self):
         '''Plots the pml profile and wave field for two transducers in a random central location with PML boundary.'''
