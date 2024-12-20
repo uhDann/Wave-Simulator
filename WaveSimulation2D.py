@@ -486,7 +486,7 @@ class Experiment:
             self.sim.add_source(Sources.create_sinusoidal_source_2D(10, 1, 6, 6))  # Source 2
 
             # Add the third sinusoidal source with dynamic amplitude
-            self.sim.add_source(Sources.create_impulse_source_2D(noise_amplitude, 1, 2, 4))  # Third source
+            self.sim.add_source(Sources.create_sinusoidal_source_2D(noise_amplitude, 1, 2, 4))  # Third source
 
             # Run the simulation
             print(f"Running simulation with third source amplitude {noise_amplitude}...")
@@ -509,7 +509,7 @@ class Experiment:
         plt.figure(figsize=(10, 6))
         plt.plot(noise_amplitudes, snrs, marker='o', label='SNR vs. Third Source Amplitude')
         plt.axhline(y=1, color='r', linestyle='--', label='SNR Threshold (1 dB)')
-        plt.title("SNR vs. Third Sinusoidal Source Amplitude")
+        plt.title("SNR vs. Third Impulse Source Amplitude")
         plt.xlabel("Third Source Amplitude")
         plt.ylabel("SNR (dB)")
         plt.legend()
