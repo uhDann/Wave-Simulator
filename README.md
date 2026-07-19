@@ -1,10 +1,12 @@
 # Wave Simulator Project
 
 ## Overview
+
 The Wave Simulator project aims to develop a comprehensive model for simulating wave phenomena in various environments. This project includes the implementation of simulation tools, derivation references, and a detailed description of the process involved in modeling and running simulations.
 
 ## Team Members
-- **Misha Rudchenko**
+
+- **Mikhail Rudchenko**
 - **Danila Kozlov**
 - **Charlene Chen**
 
@@ -20,15 +22,16 @@ The Wave Simulator project aims to develop a comprehensive model for simulating 
 ## Installation
 
 1. Clone the repository:
-    ```sh
-    git clone https://github.com/uhDann/Wave-Simulator.git
-    cd wave-simulator
-    ```
+
+   ```sh
+   git clone https://github.com/uhDann/Wave-Simulator.git
+   cd wave-simulator
+   ```
 
 2. Install the required dependencies:
-    ```sh
-    pip install -r requirements.txt
-    ```
+   ```sh
+   pip install -r requirements.txt
+   ```
 
 ## Usage
 
@@ -37,6 +40,7 @@ The Wave Simulator project aims to develop a comprehensive model for simulating 
 To run a 2D wave simulation, you can use the [`main2D.py`](main2D.py) script. The script allows you to specify various simulation parameters and run different types of experiments.
 
 Example usage:
+
 ```sh
 python main2D.py
 ```
@@ -46,6 +50,7 @@ python main2D.py
 To run a 3D wave simulation, you can use the [`main3D.py`](main3D.py) script. The script allows you to specify various simulation parameters and run different types of experiments.
 
 Example usage:
+
 ```sh
 python main3D.py
 ```
@@ -64,7 +69,7 @@ The framework supports various experiments that can be configured in the `main2D
 
 ## License
 
-This project is licensed under the MIT License. 
+This project is licensed under the MIT License.
 
 ## Contact
 
